@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"github.com/flowbase/flowbase"
 	"log"
 	"os"
@@ -11,6 +12,14 @@ import (
 
 func main() {
 	flowbase.InitLogDebug()
+
+	inFileName := flag.String("infile", "", "The input file name")
+	flag.Parse()
+	if *inFileName == "" {
+		flowbase.Error.Println("No filename specified to --infile")
+		os.Exit(1)
+	}
+
 	// Create a pipeline runner
 	pipeRunner := flowbase.NewPipelineRunner()
 
@@ -27,7 +36,7 @@ func main() {
 	// Run the pipeline!
 	go func() {
 		defer close(fileReader.InFileName)
-		fileReader.InFileName <- "lsl.txt"
+		fileReader.InFileName <- *inFileName
 	}()
 
 	pipeRunner.Run()
