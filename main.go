@@ -17,7 +17,7 @@ const (
 )
 
 func main() {
-	flowbase.InitLogDebug()
+	flowbase.InitLogInfo()
 
 	inFileName := flag.String("infile", "", "The input file name")
 	flag.Parse()
