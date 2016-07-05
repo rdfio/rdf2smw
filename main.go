@@ -5,9 +5,15 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"github.com/flowbase/flowbase"
 	"log"
 	"os"
+	str "strings"
+)
+
+const (
+	BUFSIZE = 16
 )
 
 func main() {
@@ -27,11 +33,15 @@ func main() {
 	fileReader := NewFileReader()
 	pipeRunner.AddProcess(fileReader)
 
-	sink := flowbase.NewSinkString()
-	pipeRunner.AddProcess(sink)
+	tripleParser := NewTripleParser()
+	pipeRunner.AddProcess(tripleParser)
+
+	triplePrinter := NewTriplePrinter()
+	pipeRunner.AddProcess(triplePrinter)
 
 	// Connect workflow dependency network
-	sink.Connect(fileReader.OutLine)
+	tripleParser.In = fileReader.OutLine
+	triplePrinter.In = tripleParser.Out
 
 	// Run the pipeline!
 	go func() {
@@ -47,6 +57,10 @@ func main() {
 // Components
 // ================================================================================
 
+// --------------------------------------------------------------------------------
+// FileReader
+// --------------------------------------------------------------------------------
+
 type FileReader struct {
 	InFileName chan string
 	OutLine    chan string
@@ -54,8 +68,8 @@ type FileReader struct {
 
 func NewFileReader() *FileReader {
 	return &FileReader{
-		InFileName: make(chan string, flowbase.BUFSIZE),
-		OutLine:    make(chan string, flowbase.BUFSIZE),
+		InFileName: make(chan string, BUFSIZE),
+		OutLine:    make(chan string, BUFSIZE),
 	}
 }
 
@@ -79,4 +93,66 @@ func (p *FileReader) Run() {
 			p.OutLine <- sc.Text()
 		}
 	}
+}
+
+// --------------------------------------------------------------------------------
+// TripleParser
+// --------------------------------------------------------------------------------
+
+type TripleParser struct {
+	In  chan string
+	Out chan *RDFTriple
+}
+
+func NewTripleParser() *TripleParser {
+	return &TripleParser{
+		In:  make(chan string, BUFSIZE),
+		Out: make(chan *RDFTriple, BUFSIZE),
+	}
+}
+
+func (p *TripleParser) Run() {
+	defer close(p.Out)
+	for line := range p.In {
+		triple := NewRDFTriple()
+		bits := str.Split(line, " ")
+		triple.Subject = bits[0]
+		triple.Predicate = bits[1]
+		triple.Object = bits[2]
+		p.Out <- triple
+	}
+}
+
+// --------------------------------------------------------------------------------
+// TriplePrinter
+// --------------------------------------------------------------------------------
+
+type TriplePrinter struct {
+	In chan *RDFTriple
+}
+
+func NewTriplePrinter() *TriplePrinter {
+	return &TriplePrinter{
+		In: make(chan *RDFTriple, BUFSIZE),
+	}
+}
+
+func (p *TriplePrinter) Run() {
+	for tr := range p.In {
+		fmt.Printf("S: %s\nP: %s\nO: %s\n\n", tr.Subject, tr.Predicate, tr.Object)
+	}
+}
+
+// --------------------------------------------------------------------------------
+// IP: RDFTriple
+// --------------------------------------------------------------------------------
+
+type RDFTriple struct {
+	Subject   string
+	Predicate string
+	Object    string
+}
+
+func NewRDFTriple() *RDFTriple {
+	return &RDFTriple{}
 }
