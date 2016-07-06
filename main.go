@@ -6,11 +6,13 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/d4l3k/turtle"
-	"github.com/flowbase/flowbase"
+	"io"
 	"log"
 	"os"
 	str "strings"
+
+	"github.com/flowbase/flowbase"
+	"github.com/knakk/rdf"
 )
 
 const (
@@ -37,15 +39,15 @@ func main() {
 	//tripleParser := NewTripleParser()
 	//pipeRunner.AddProcess(tripleParser)
 
-	turtleToTriples := NewTurtleToTriples()
-	pipeRunner.AddProcess(turtleToTriples)
+	tripleParser := NewTripleParser()
+	pipeRunner.AddProcess(tripleParser)
 
 	triplePrinter := NewTriplePrinter()
 	pipeRunner.AddProcess(triplePrinter)
 
 	// Connect workflow dependency network
-	turtleToTriples.In = fileReader.OutLine
-	triplePrinter.In = turtleToTriples.Out
+	tripleParser.In = fileReader.OutLine
+	triplePrinter.In = tripleParser.Out
 
 	// Run the pipeline!
 	go func() {
@@ -118,41 +120,11 @@ func NewTripleParser() *TripleParser {
 func (p *TripleParser) Run() {
 	defer close(p.Out)
 	for line := range p.In {
-		triple := NewRDFTriple()
-		bits := str.Split(line, " ")
-		triple.Subject = bits[0]
-		triple.Predicate = bits[1]
-		triple.Object = bits[2]
-		p.Out <- triple
-	}
-}
-
-// --------------------------------------------------------------------------------
-// TurtleToTriples
-// --------------------------------------------------------------------------------
-
-type TurtleToTriples struct {
-	In  chan string
-	Out chan turtle.Triple
-}
-
-func NewTurtleToTriples() *TurtleToTriples {
-	return &TurtleToTriples{
-		In:  make(chan string, BUFSIZE),
-		Out: make(chan turtle.Triple, BUFSIZE),
-	}
-}
-
-func (p *TurtleToTriples) Run() {
-	defer close(p.Out)
-	for line := range p.In {
-		triples, err := turtle.Parse([]byte(line))
-		if err != nil {
-			flowbase.Error.Printf("Error parsing turtle: %v", err)
-			os.Exit(1)
-		}
-		for _, triple := range triples {
-			p.Out <- triple
+		lineReader := str.NewReader(line)
+		dec := rdf.NewTripleDecoder(lineReader, rdf.Turtle)
+		for triple, err := dec.Decode(); err != io.EOF; triple, err = dec.Decode() {
+			rdfTriple := &RDFTriple{Subject: triple.Subj.String(), Predicate: triple.Pred.String(), Object: triple.Obj.String()}
+			p.Out <- rdfTriple
 		}
 	}
 }
@@ -162,18 +134,18 @@ func (p *TurtleToTriples) Run() {
 // --------------------------------------------------------------------------------
 
 type TriplePrinter struct {
-	In chan turtle.Triple
+	In chan *RDFTriple
 }
 
 func NewTriplePrinter() *TriplePrinter {
 	return &TriplePrinter{
-		In: make(chan turtle.Triple, BUFSIZE),
+		In: make(chan *RDFTriple, BUFSIZE),
 	}
 }
 
 func (p *TriplePrinter) Run() {
 	for tr := range p.In {
-		fmt.Printf("S: %s\nP: %s\nO: %s\n\n", tr.Subj, tr.Pred, tr.Obj)
+		fmt.Printf("S: %s\nP: %s\nO: %s\n\n", tr.Subject, tr.Predicate, tr.Object)
 	}
 }
 
