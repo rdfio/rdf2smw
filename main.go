@@ -42,12 +42,16 @@ func main() {
 	tripleParser := NewTripleParser()
 	pipeRunner.AddProcess(tripleParser)
 
-	triplePrinter := NewTriplePrinter()
-	pipeRunner.AddProcess(triplePrinter)
+	tripleAggregator := NewAggregateTriplesPerSubject()
+	pipeRunner.AddProcess(tripleAggregator)
+
+	tripleAggregatePrinter := NewTripleAggregatePrinter()
+	pipeRunner.AddProcess(tripleAggregatePrinter)
 
 	// Connect workflow dependency network
 	tripleParser.In = fileReader.OutLine
-	triplePrinter.In = tripleParser.Out
+	tripleAggregator.In = tripleParser.Out
+	tripleAggregatePrinter.In = tripleAggregator.Out
 
 	// Run the pipeline!
 	go func() {
@@ -130,6 +134,34 @@ func (p *TripleParser) Run() {
 }
 
 // --------------------------------------------------------------------------------
+// AggregateTriplesPerSubject
+// --------------------------------------------------------------------------------
+
+type AggregateTriplesPerSubject struct {
+	In  chan *RDFTriple
+	Out chan *TripleAggregate
+}
+
+func NewAggregateTriplesPerSubject() *AggregateTriplesPerSubject {
+	return &AggregateTriplesPerSubject{
+		In:  make(chan *RDFTriple, BUFSIZE),
+		Out: make(chan *TripleAggregate, BUFSIZE),
+	}
+}
+
+func (p *AggregateTriplesPerSubject) Run() {
+	defer close(p.Out)
+	tripleIndex := make(map[string][]*RDFTriple)
+	for triple := range p.In {
+		tripleIndex[triple.Subject] = append(tripleIndex[triple.Subject], triple)
+	}
+	for subj, triples := range tripleIndex {
+		tripleAggregate := NewTripleAggregate(subj, triples)
+		p.Out <- tripleAggregate
+	}
+}
+
+// --------------------------------------------------------------------------------
 // TriplePrinter
 // --------------------------------------------------------------------------------
 
@@ -150,6 +182,30 @@ func (p *TriplePrinter) Run() {
 }
 
 // --------------------------------------------------------------------------------
+// TripleAggregatePrinter
+// --------------------------------------------------------------------------------
+
+type TripleAggregatePrinter struct {
+	In chan *TripleAggregate
+}
+
+func NewTripleAggregatePrinter() *TripleAggregatePrinter {
+	return &TripleAggregatePrinter{
+		In: make(chan *TripleAggregate, BUFSIZE),
+	}
+}
+
+func (p *TripleAggregatePrinter) Run() {
+	for trAggr := range p.In {
+		fmt.Printf("Subject: %s\nTriples:\n", trAggr.Subject)
+		for _, tr := range trAggr.Triples {
+			fmt.Printf("\t<%s> <%s> <%s>\n", tr.Subject, tr.Predicate, tr.Object)
+		}
+		fmt.Println()
+	}
+}
+
+// --------------------------------------------------------------------------------
 // IP: RDFTriple
 // --------------------------------------------------------------------------------
 
@@ -161,4 +217,20 @@ type RDFTriple struct {
 
 func NewRDFTriple() *RDFTriple {
 	return &RDFTriple{}
+}
+
+// --------------------------------------------------------------------------------
+// IP: TripleAggregate
+// --------------------------------------------------------------------------------
+
+type TripleAggregate struct {
+	Subject string
+	Triples []*RDFTriple
+}
+
+func NewTripleAggregate(subj string, triples []*RDFTriple) *TripleAggregate {
+	return &TripleAggregate{
+		Subject: subj,
+		Triples: triples,
+	}
 }
