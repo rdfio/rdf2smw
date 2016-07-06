@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"github.com/d4l3k/turtle"
 	"github.com/flowbase/flowbase"
 	"log"
 	"os"
@@ -22,7 +23,7 @@ func main() {
 	inFileName := flag.String("infile", "", "The input file name")
 	flag.Parse()
 	if *inFileName == "" {
-		flowbase.Error.Println("No filename specified to --infile")
+		fmt.Println("No filename specified to --infile")
 		os.Exit(1)
 	}
 
@@ -33,15 +34,18 @@ func main() {
 	fileReader := NewFileReader()
 	pipeRunner.AddProcess(fileReader)
 
-	tripleParser := NewTripleParser()
-	pipeRunner.AddProcess(tripleParser)
+	//tripleParser := NewTripleParser()
+	//pipeRunner.AddProcess(tripleParser)
+
+	turtleToTriples := NewTurtleToTriples()
+	pipeRunner.AddProcess(turtleToTriples)
 
 	triplePrinter := NewTriplePrinter()
 	pipeRunner.AddProcess(triplePrinter)
 
 	// Connect workflow dependency network
-	tripleParser.In = fileReader.OutLine
-	triplePrinter.In = tripleParser.Out
+	turtleToTriples.In = fileReader.OutLine
+	triplePrinter.In = turtleToTriples.Out
 
 	// Run the pipeline!
 	go func() {
@@ -124,22 +128,52 @@ func (p *TripleParser) Run() {
 }
 
 // --------------------------------------------------------------------------------
+// TurtleToTriples
+// --------------------------------------------------------------------------------
+
+type TurtleToTriples struct {
+	In  chan string
+	Out chan turtle.Triple
+}
+
+func NewTurtleToTriples() *TurtleToTriples {
+	return &TurtleToTriples{
+		In:  make(chan string, BUFSIZE),
+		Out: make(chan turtle.Triple, BUFSIZE),
+	}
+}
+
+func (p *TurtleToTriples) Run() {
+	defer close(p.Out)
+	for line := range p.In {
+		triples, err := turtle.Parse([]byte(line))
+		if err != nil {
+			flowbase.Error.Printf("Error parsing turtle: %v", err)
+			os.Exit(1)
+		}
+		for _, triple := range triples {
+			p.Out <- triple
+		}
+	}
+}
+
+// --------------------------------------------------------------------------------
 // TriplePrinter
 // --------------------------------------------------------------------------------
 
 type TriplePrinter struct {
-	In chan *RDFTriple
+	In chan turtle.Triple
 }
 
 func NewTriplePrinter() *TriplePrinter {
 	return &TriplePrinter{
-		In: make(chan *RDFTriple, BUFSIZE),
+		In: make(chan turtle.Triple, BUFSIZE),
 	}
 }
 
 func (p *TriplePrinter) Run() {
 	for tr := range p.In {
-		fmt.Printf("S: %s\nP: %s\nO: %s\n\n", tr.Subject, tr.Predicate, tr.Object)
+		fmt.Printf("S: %s\nP: %s\nO: %s\n\n", tr.Subj, tr.Pred, tr.Obj)
 	}
 }
 
