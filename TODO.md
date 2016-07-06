@@ -11,5 +11,5 @@ Components to develop
 - [ ] TermsToWikiPages
 - [ ] TriplesToFacts
 - [ ] FactsToTemplateCall
-- [ ] PagesToInMWXML
+- [ ] PagesToMWXML
 - [ ] FileWriter
