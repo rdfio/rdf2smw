@@ -9,6 +9,8 @@ flow-based programming micro-framework.
 
 **Status:** Under heavy development ... only the fist few components are being fleshed out now, no XML generation yet, etc!
 
+For more detailed status, see [TODO.md](https://github.com/samuell/rdf2smw/blob/master/TODO.md)
+
 Usage
 -----
 
