@@ -29,34 +29,69 @@ func main() {
 		os.Exit(1)
 	}
 
+	// ------------------------------------------
+	// Initialize processes
+	// ------------------------------------------
+
 	// Create a pipeline runner
 	pipeRunner := flowbase.NewPipelineRunner()
 
-	// Initialize processes and add to runner
-	fileReader := NewFileReader()
-	pipeRunner.AddProcess(fileReader)
+	// Read in-file
+	fileRead := NewFileReader()
+	pipeRunner.AddProcess(fileRead)
 
-	//tripleParser := NewTripleParser()
-	//pipeRunner.AddProcess(tripleParser)
+	// Parse triples
+	parser := NewTripleParser()
+	pipeRunner.AddProcess(parser)
 
-	tripleParser := NewTripleParser()
-	pipeRunner.AddProcess(tripleParser)
+	// Aggregate per subject
+	aggregator := NewAggregateTriplesPerSubject()
+	pipeRunner.AddProcess(aggregator)
 
-	tripleAggregator := NewAggregateTriplesPerSubject()
-	pipeRunner.AddProcess(tripleAggregator)
+	// Create an subject-indexed "index" of all triples
+	indexCreator := NewCreateTripleIndex()
+	pipeRunner.AddProcess(indexCreator)
 
-	tripleAggregatePrinter := NewTripleAggregatePrinter()
-	pipeRunner.AddProcess(tripleAggregatePrinter)
+	// Fan-out the triple index to the converter and serializer
+	indexFanOut := NewTripleIndexFanOut()
+	pipeRunner.AddProcess(indexFanOut)
 
-	// Connect workflow dependency network
-	tripleParser.In = fileReader.OutLine
-	tripleAggregator.In = tripleParser.Out
-	tripleAggregatePrinter.In = tripleAggregator.Out
+	// Serialize the index back to individual subject-tripleaggregates
+	indexToAggr := NewTripleIndexToTripleAggregates()
+	pipeRunner.AddProcess(indexToAggr)
 
-	// Run the pipeline!
+	// Convert TripleAggregate to WikiPage
+	triplesToWikiConverter := NewTripleAggregateToWikiPageConverter()
+	pipeRunner.AddProcess(triplesToWikiConverter)
+
+	// Pretty-print wiki page data
+	wikiPagePrinter := NewWikiPagePrinter()
+	pipeRunner.AddProcess(wikiPagePrinter)
+
+	// ------------------------------------------
+	// Connect network
+	// ------------------------------------------
+
+	fileRead.OutLine = parser.In
+	parser.Out = aggregator.In
+
+	aggregator.Out = indexCreator.In
+
+	indexCreator.Out = indexFanOut.In
+	indexFanOut.Out["serialize"] = indexToAggr.In
+	indexFanOut.Out["conv"] = triplesToWikiConverter.InIndex
+
+	indexToAggr.Out = triplesToWikiConverter.InAggregate
+
+	triplesToWikiConverter.OutPage = wikiPagePrinter.In
+
+	// ------------------------------------------
+	// Send in-data and run
+	// ------------------------------------------
+
 	go func() {
-		defer close(fileReader.InFileName)
-		fileReader.InFileName <- *inFileName
+		defer close(fileRead.InFileName)
+		fileRead.InFileName <- *inFileName
 	}()
 
 	pipeRunner.Run()
@@ -160,6 +195,198 @@ func (p *AggregateTriplesPerSubject) Run() {
 	}
 }
 
+type FanOutTripleAggregate struct {
+	In  chan *TripleAggregate
+	Out map[string](chan *TripleAggregate)
+}
+
+// NewFanOut creates a new FanOut process
+func NewFanOutTripleAggregate() *FanOutTripleAggregate {
+	return &FanOutTripleAggregate{
+		In:  make(chan *TripleAggregate, BUFSIZE),
+		Out: make(map[string](chan *TripleAggregate)),
+	}
+}
+
+// Run runs the FanOut process
+func (proc *FanOutTripleAggregate) Run() {
+	for _, outPort := range proc.Out {
+		defer close(outPort)
+	}
+
+	for ft := range proc.In {
+		for _, outPort := range proc.Out {
+			outPort <- ft
+		}
+	}
+}
+
+// --------------------------------------------------------------------------------
+// Create Triple Index
+// --------------------------------------------------------------------------------
+
+type CreateTripleIndex struct {
+	In  chan *TripleAggregate
+	Out chan map[string]*TripleAggregate
+}
+
+func NewCreateTripleIndex() *CreateTripleIndex {
+	return &CreateTripleIndex{
+		In:  make(chan *TripleAggregate, BUFSIZE),
+		Out: make(chan map[string]*TripleAggregate),
+	}
+}
+
+func (p *CreateTripleIndex) Run() {
+	defer close(p.Out)
+
+	idx := make(map[string]*TripleAggregate)
+	for aggr := range p.In {
+		idx[aggr.SubjectStr] = aggr
+	}
+
+	p.Out <- idx
+}
+
+// --------------------------------------------------------------------------------
+// Triple Index FanOut
+// --------------------------------------------------------------------------------
+
+type TripleIndexFanOut struct {
+	In  chan map[string]*TripleAggregate
+	Out map[string]chan map[string]*TripleAggregate
+}
+
+func NewTripleIndexFanOut() *TripleIndexFanOut {
+	return &TripleIndexFanOut{
+		In:  make(chan map[string]*TripleAggregate),
+		Out: make(map[string]chan map[string]*TripleAggregate),
+	}
+}
+
+func (p *TripleIndexFanOut) Run() {
+	for _, outPort := range p.Out {
+		defer close(outPort)
+	}
+
+	for idx := range p.In {
+		for _, outPort := range p.Out {
+			outPort <- idx
+		}
+	}
+}
+
+// --------------------------------------------------------------------------------
+// Triple Index To Triple Aggregates
+// --------------------------------------------------------------------------------
+
+type TripleIndexToTripleAggregates struct {
+	In  chan map[string]*TripleAggregate
+	Out chan *TripleAggregate
+}
+
+func NewTripleIndexToTripleAggregates() *TripleIndexToTripleAggregates {
+	return &TripleIndexToTripleAggregates{
+		In:  make(chan map[string]*TripleAggregate, BUFSIZE),
+		Out: make(chan *TripleAggregate, BUFSIZE),
+	}
+}
+
+func (p *TripleIndexToTripleAggregates) Run() {
+	defer close(p.Out)
+
+	for idx := range p.In {
+		for _, aggr := range idx {
+			p.Out <- aggr
+		}
+	}
+}
+
+// --------------------------------------------------------------------------------
+// TripleAggregateToWikiPageConverter
+// --------------------------------------------------------------------------------
+
+var titleProperties = []string{
+	"http://semantic-mediawiki.org/swivt/1.0#page",
+	"http://www.w3.org/2000/01/rdf-schema#label",
+	"http://purl.org/dc/elements/1.1/title",
+	"http://www.w3.org/2004/02/skos/core#preferredLabel",
+	"http://xmlns.com/foaf/0.1/name",
+}
+
+var namespaceAbbreviations = map[string]string{
+	"http://www.opentox.org/api/1.1#": "opentox",
+}
+
+type TripleAggregateToWikiPageConverter struct {
+	InAggregate chan *TripleAggregate
+	InIndex     chan map[string]*TripleAggregate
+	OutPage     chan *WikiPage
+}
+
+func NewTripleAggregateToWikiPageConverter() *TripleAggregateToWikiPageConverter {
+	return &TripleAggregateToWikiPageConverter{
+		InAggregate: make(chan *TripleAggregate, BUFSIZE),
+		InIndex:     make(chan map[string]*TripleAggregate, BUFSIZE),
+		OutPage:     make(chan *WikiPage, BUFSIZE),
+	}
+}
+
+func (p *TripleAggregateToWikiPageConverter) Run() {
+	defer close(p.OutPage)
+	tripleIndex := <-p.InIndex
+	for aggr := range p.InAggregate {
+		pageTitle, _ := p.convertUriToWikiTitle(aggr.SubjectStr, false, tripleIndex)
+
+		page := NewWikiPage(pageTitle, []*Fact{})
+		for _, tr := range aggr.Triples {
+			fact := NewFact(tr.Pred.String(), tr.Obj.String())
+			page.AddFact(fact)
+		}
+		p.OutPage <- page
+	}
+}
+
+// For properties, the factTitle and pageTitle will be different (The page
+// title including the "Property:" prefix), while for normal pages, they will
+// be the same.
+func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string,
+	isProperty bool, tripleIndex map[string]*TripleAggregate) (pageTitle string, factTitle string) {
+
+	aggr := tripleIndex[uri]
+
+	// Conversion strategies:
+	// 1. Existing wiki title (in wiki, or cache)
+	// 2. Use configured title-deciding properties
+	for _, titleProp := range titleProperties {
+		for _, tr := range aggr.Triples {
+			if tr.Pred.String() == titleProp {
+				factTitle = tr.Obj.String()
+			}
+		}
+	}
+
+	// 3. Shorten URI namespace to alias (e.g. http://purl.org/dc -> dc:)
+	//    (Does this apply for properties only?)
+
+	// 4. Remove namespace, keep only local part of URL (Split on '/' or '#')
+	if factTitle == "" {
+		bits := str.Split(uri, "#")
+		lastBit := bits[len(bits)-1]
+		bits = str.Split(lastBit, "/")
+		lastBit = bits[len(bits)-1]
+		factTitle = lastBit
+	}
+
+	if isProperty {
+		pageTitle = "Property:" + factTitle
+	} else {
+		pageTitle = factTitle
+	}
+
+	return pageTitle, factTitle
+}
+
 // --------------------------------------------------------------------------------
 // TriplePrinter
 // --------------------------------------------------------------------------------
@@ -205,6 +432,30 @@ func (p *TripleAggregatePrinter) Run() {
 }
 
 // --------------------------------------------------------------------------------
+// WikiPagePrinter
+// --------------------------------------------------------------------------------
+
+type WikiPagePrinter struct {
+	In chan *WikiPage
+}
+
+func NewWikiPagePrinter() *WikiPagePrinter {
+	return &WikiPagePrinter{
+		In: make(chan *WikiPage, flowbase.BUFSIZE),
+	}
+}
+
+func (p *WikiPagePrinter) Run() {
+	for page := range p.In {
+		fmt.Println("Title: ", page.Title)
+		for _, fact := range page.Facts {
+			fmt.Printf("[[%s::%s]]\n", fact.Property, fact.Value)
+		}
+		fmt.Println("") // Print an empty line
+	}
+}
+
+// --------------------------------------------------------------------------------
 // IP: RDFTriple
 // --------------------------------------------------------------------------------
 //
@@ -223,13 +474,49 @@ func (p *TripleAggregatePrinter) Run() {
 // --------------------------------------------------------------------------------
 
 type TripleAggregate struct {
-	Subject rdf.Subject
-	Triples []rdf.Triple
+	Subject    rdf.Subject
+	SubjectStr string
+	Triples    []rdf.Triple
 }
 
 func NewTripleAggregate(subj rdf.Subject, triples []rdf.Triple) *TripleAggregate {
 	return &TripleAggregate{
-		Subject: subj,
-		Triples: triples,
+		Subject:    subj,
+		SubjectStr: subj.String(),
+		Triples:    triples,
+	}
+}
+
+// --------------------------------------------------------------------------------
+// IP: WikiPage
+// --------------------------------------------------------------------------------
+
+type WikiPage struct {
+	Title string
+	Facts []*Fact
+}
+
+func NewWikiPage(title string, facts []*Fact) *WikiPage {
+	return &WikiPage{
+		Title: title,
+		Facts: facts,
+	}
+}
+
+func (p *WikiPage) AddFact(fact *Fact) {
+	p.Facts = append(p.Facts, fact)
+}
+
+// Helper type: Fact
+
+type Fact struct {
+	Property string
+	Value    string
+}
+
+func NewFact(property string, value string) *Fact {
+	return &Fact{
+		Property: property,
+		Value:    value,
 	}
 }
