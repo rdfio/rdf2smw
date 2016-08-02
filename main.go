@@ -455,6 +455,10 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 		factTitle = lastBit
 	}
 
+	// Clean up strange characters
+	factTitle = str.Replace(factTitle, "[", "(", -1)
+	factTitle = str.Replace(factTitle, "]", ")", -1)
+
 	if uriType == URITypePredicate {
 		pageTitle = "Property:" + factTitle
 	} else if uriType == URITypeClass {
