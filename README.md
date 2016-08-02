@@ -7,7 +7,7 @@ XML export format)
 RDF2SMW is based on the [FlowBase](https://github.com/flowbase/flowbase)
 flow-based programming micro-framework.
 
-**Status:** Under heavy development ... only the fist few components are being fleshed out now, no XML generation yet, etc!
+**Status:** Basic MediaWiki import XML now works. Work is being done on more features and fixing bugs.
 
 For more detailed status, see [TODO.md](https://github.com/samuell/rdf2smw/blob/master/TODO.md)
 
@@ -18,5 +18,6 @@ Usage
 
 ```bash
 go build
-./rdf2smw --infile triples.nt | less -S
+./rdf2smw --infile triples.nt > semantic_mediawiki_pages.xml
+php <wikidir>/maintenance/importDump.php semantic_mediawiki_pages.xml
 ```
