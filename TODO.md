@@ -12,6 +12,8 @@ Components/things to develop
   - [x] Add Category: title namespace
   - [x] Add Category wiki codes.
   - [x] Add Equivalent URI facts.
+  - [ ] Clean up titles from problematic characters like `[]`
 - [ ] FactsToTemplateCall
 - [x] PagesToMWXML
 - [x] FileWriter
+
