@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	str "strings"
+	"time"
 
 	"github.com/flowbase/flowbase"
 	"github.com/knakk/rdf"
@@ -49,15 +50,15 @@ func main() {
 	pipeRunner.AddProcess(aggregator)
 
 	// Create an subject-indexed "index" of all triples
-	indexCreator := NewCreateTripleIndex()
+	indexCreator := NewCreateResourceIndex()
 	pipeRunner.AddProcess(indexCreator)
 
 	// Fan-out the triple index to the converter and serializer
-	indexFanOut := NewTripleIndexFanOut()
+	indexFanOut := NewResourceIndexFanOut()
 	pipeRunner.AddProcess(indexFanOut)
 
 	// Serialize the index back to individual subject-tripleaggregates
-	indexToAggr := NewTripleIndexToTripleAggregates()
+	indexToAggr := NewResourceIndexToTripleAggregates()
 	pipeRunner.AddProcess(indexToAggr)
 
 	// Convert TripleAggregate to WikiPage
@@ -65,8 +66,14 @@ func main() {
 	pipeRunner.AddProcess(triplesToWikiConverter)
 
 	// Pretty-print wiki page data
-	wikiPagePrinter := NewWikiPagePrinter()
-	pipeRunner.AddProcess(wikiPagePrinter)
+	//wikiPagePrinter := NewWikiPagePrinter()
+	//pipeRunner.AddProcess(wikiPagePrinter)
+
+	xmlCreator := NewMWXMLCreator()
+	pipeRunner.AddProcess(xmlCreator)
+
+	printer := NewLinePrinter()
+	pipeRunner.AddProcess(printer)
 
 	// ------------------------------------------
 	// Connect network
@@ -83,7 +90,9 @@ func main() {
 
 	indexToAggr.Out = triplesToWikiConverter.InAggregate
 
-	triplesToWikiConverter.OutPage = wikiPagePrinter.In
+	triplesToWikiConverter.OutPage = xmlCreator.InWikiPage
+
+	xmlCreator.OutLine = printer.In
 
 	// ------------------------------------------
 	// Send in-data and run
@@ -185,11 +194,11 @@ func NewAggregateTriplesPerSubject() *AggregateTriplesPerSubject {
 
 func (p *AggregateTriplesPerSubject) Run() {
 	defer close(p.Out)
-	tripleIndex := make(map[rdf.Subject][]rdf.Triple)
+	resourceIndex := make(map[rdf.Subject][]rdf.Triple)
 	for triple := range p.In {
-		tripleIndex[triple.Subj] = append(tripleIndex[triple.Subj], triple)
+		resourceIndex[triple.Subj] = append(resourceIndex[triple.Subj], triple)
 	}
-	for subj, triples := range tripleIndex {
+	for subj, triples := range resourceIndex {
 		tripleAggregate := NewTripleAggregate(subj, triples)
 		p.Out <- tripleAggregate
 	}
@@ -225,19 +234,19 @@ func (proc *FanOutTripleAggregate) Run() {
 // Create Triple Index
 // --------------------------------------------------------------------------------
 
-type CreateTripleIndex struct {
+type CreateResourceIndex struct {
 	In  chan *TripleAggregate
 	Out chan map[string]*TripleAggregate
 }
 
-func NewCreateTripleIndex() *CreateTripleIndex {
-	return &CreateTripleIndex{
+func NewCreateResourceIndex() *CreateResourceIndex {
+	return &CreateResourceIndex{
 		In:  make(chan *TripleAggregate, BUFSIZE),
 		Out: make(chan map[string]*TripleAggregate),
 	}
 }
 
-func (p *CreateTripleIndex) Run() {
+func (p *CreateResourceIndex) Run() {
 	defer close(p.Out)
 
 	idx := make(map[string]*TripleAggregate)
@@ -252,19 +261,19 @@ func (p *CreateTripleIndex) Run() {
 // Triple Index FanOut
 // --------------------------------------------------------------------------------
 
-type TripleIndexFanOut struct {
+type ResourceIndexFanOut struct {
 	In  chan map[string]*TripleAggregate
 	Out map[string]chan map[string]*TripleAggregate
 }
 
-func NewTripleIndexFanOut() *TripleIndexFanOut {
-	return &TripleIndexFanOut{
+func NewResourceIndexFanOut() *ResourceIndexFanOut {
+	return &ResourceIndexFanOut{
 		In:  make(chan map[string]*TripleAggregate),
 		Out: make(map[string]chan map[string]*TripleAggregate),
 	}
 }
 
-func (p *TripleIndexFanOut) Run() {
+func (p *ResourceIndexFanOut) Run() {
 	for _, outPort := range p.Out {
 		defer close(outPort)
 	}
@@ -277,22 +286,22 @@ func (p *TripleIndexFanOut) Run() {
 }
 
 // --------------------------------------------------------------------------------
-// Triple Index To Triple Aggregates
+// Resource Index To Resource Aggregates
 // --------------------------------------------------------------------------------
 
-type TripleIndexToTripleAggregates struct {
+type ResourceIndexToTripleAggregates struct {
 	In  chan map[string]*TripleAggregate
 	Out chan *TripleAggregate
 }
 
-func NewTripleIndexToTripleAggregates() *TripleIndexToTripleAggregates {
-	return &TripleIndexToTripleAggregates{
+func NewResourceIndexToTripleAggregates() *ResourceIndexToTripleAggregates {
+	return &ResourceIndexToTripleAggregates{
 		In:  make(chan map[string]*TripleAggregate, BUFSIZE),
 		Out: make(chan *TripleAggregate, BUFSIZE),
 	}
 }
 
-func (p *TripleIndexToTripleAggregates) Run() {
+func (p *ResourceIndexToTripleAggregates) Run() {
 	defer close(p.Out)
 
 	for idx := range p.In {
@@ -302,9 +311,11 @@ func (p *TripleIndexToTripleAggregates) Run() {
 	}
 }
 
-// --------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // TripleAggregateToWikiPageConverter
-// --------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+
+// Constants etc ---------------------------------------------------------------
 
 var titleProperties = []string{
 	"http://semantic-mediawiki.org/swivt/1.0#page",
@@ -317,6 +328,30 @@ var titleProperties = []string{
 var namespaceAbbreviations = map[string]string{
 	"http://www.opentox.org/api/1.1#": "opentox",
 }
+
+var propertyTypes = []string{
+	"http://www.w3.org/2002/07/owl#AnnotationProperty",
+	"http://www.w3.org/2002/07/owl#DatatypeProperty",
+	"http://www.w3.org/2002/07/owl#ObjectProperty",
+}
+
+var categoryTypes = []string{
+	"http://www.w3.org/2002/07/owl#Class",
+}
+
+const (
+	typePropertyURI     = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+	subClassPropertyURI = "http://www.w3.org/2000/01/rdf-schema#subClassOf"
+)
+
+const (
+	_ = iota
+	URITypeUndefined
+	URITypePredicate
+	URITypeClass
+)
+
+// Code -----------------------------------------------------------------------
 
 type TripleAggregateToWikiPageConverter struct {
 	InAggregate chan *TripleAggregate
@@ -334,35 +369,77 @@ func NewTripleAggregateToWikiPageConverter() *TripleAggregateToWikiPageConverter
 
 func (p *TripleAggregateToWikiPageConverter) Run() {
 	defer close(p.OutPage)
-	tripleIndex := <-p.InIndex
+	resourceIndex := <-p.InIndex
 	for aggr := range p.InAggregate {
-		pageTitle, _ := p.convertUriToWikiTitle(aggr.SubjectStr, false, tripleIndex)
+		pageType := p.determineType(aggr)
 
-		page := NewWikiPage(pageTitle, []*Fact{})
+		pageTitle, _ := p.convertUriToWikiTitle(aggr.SubjectStr, pageType, resourceIndex)
+
+		page := NewWikiPage(pageTitle, []*Fact{}, []string{}, pageType)
+
 		for _, tr := range aggr.Triples {
-			fact := NewFact(tr.Pred.String(), tr.Obj.String())
-			page.AddFact(fact)
+
+			_, propertyStr := p.convertUriToWikiTitle(tr.Pred.String(), URITypePredicate, resourceIndex) // Here we know it is a predicate, simply because its location in a triple
+
+			valueAggr := resourceIndex[tr.Obj.String()]
+			valueUriType := p.determineType(valueAggr)
+			_, valueStr := p.convertUriToWikiTitle(tr.Obj.String(), valueUriType, resourceIndex)
+
+			if valueUriType == URITypeClass && (tr.Pred.String() == typePropertyURI || tr.Pred.String() == subClassPropertyURI) {
+				page.AddCategory(valueStr)
+			} else {
+				fact := NewFact(propertyStr, valueStr)
+				page.AddFact(fact)
+			}
 		}
+
+		// Add Equivalent URI fact
+		equivURIFact := NewFact("Equivalent URI", aggr.Subject.String())
+		page.AddFact(equivURIFact)
+
 		p.OutPage <- page
 	}
+}
+
+func (p *TripleAggregateToWikiPageConverter) determineType(uriAggr *TripleAggregate) int {
+	if uriAggr != nil {
+		if uriAggr.Triples != nil {
+			for _, tr := range uriAggr.Triples {
+				for _, propType := range propertyTypes {
+					if tr.Pred.String() == typePropertyURI && tr.Obj.String() == propType {
+						return URITypePredicate
+					}
+				}
+				for _, catType := range categoryTypes {
+					if tr.Pred.String() == typePropertyURI && tr.Obj.String() == catType {
+						return URITypeClass
+					}
+				}
+			}
+		}
+	}
+	return URITypeUndefined
 }
 
 // For properties, the factTitle and pageTitle will be different (The page
 // title including the "Property:" prefix), while for normal pages, they will
 // be the same.
-func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string,
-	isProperty bool, tripleIndex map[string]*TripleAggregate) (pageTitle string, factTitle string) {
+func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, uriType int, resourceIndex map[string]*TripleAggregate) (pageTitle string, factTitle string) {
 
-	aggr := tripleIndex[uri]
+	aggr := resourceIndex[uri]
 
 	// Conversion strategies:
 	// 1. Existing wiki title (in wiki, or cache)
 	// 2. Use configured title-deciding properties
 	for _, titleProp := range titleProperties {
-		for _, tr := range aggr.Triples {
-			if tr.Pred.String() == titleProp {
-				factTitle = tr.Obj.String()
+		if aggr != nil {
+			for _, tr := range aggr.Triples {
+				if tr.Pred.String() == titleProp {
+					factTitle = tr.Obj.String()
+				}
 			}
+		} else {
+			factTitle = ""
 		}
 	}
 
@@ -378,13 +455,81 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string,
 		factTitle = lastBit
 	}
 
-	if isProperty {
+	if uriType == URITypePredicate {
 		pageTitle = "Property:" + factTitle
+	} else if uriType == URITypeClass {
+		pageTitle = "Category:" + factTitle
 	} else {
 		pageTitle = factTitle
 	}
 
 	return pageTitle, factTitle
+}
+
+// --------------------------------------------------------------------------------
+// MW XML Creator
+// --------------------------------------------------------------------------------
+
+type MWXMLCreator struct {
+	InWikiPage chan *WikiPage
+	OutLine    chan string
+}
+
+func NewMWXMLCreator() *MWXMLCreator {
+	return &MWXMLCreator{
+		InWikiPage: make(chan *WikiPage, BUFSIZE),
+		OutLine:    make(chan string, BUFSIZE),
+	}
+}
+
+const wikiXmlTpl = `
+	<page>
+		<title>%s</title>
+		<ns>%d</ns>
+		<revision>
+			<timestamp>%s</timestamp>
+			<contributor>
+				<ip>127.0.0.1</ip>
+			</contributor>
+			<comment>Page created by RDF2SMW commandline tool</comment>
+			<model>wikitext</model>
+			<format>text/x-wiki</format>
+			<text xml:space="preserve">
+%s</text>
+		</revision>
+	</page>
+`
+
+var pageTypeToMWNamespace = map[int]int{
+	URITypeClass:     14,
+	URITypePredicate: 102,
+	URITypeUndefined: 0,
+}
+
+func (p *MWXMLCreator) Run() {
+	defer close(p.OutLine)
+
+	p.OutLine <- "<mediawiki>"
+
+	for page := range p.InWikiPage {
+
+		wikiText := ""
+
+		for _, fact := range page.Facts {
+			wikiText += fmt.Sprintf("[[%s::%s]]\n", fact.Property, fact.Value)
+		}
+
+		for _, cat := range page.Categories {
+			wikiText += fmt.Sprintf("[[Category:%s]]\n", cat)
+		}
+
+		xmlData := fmt.Sprintf(wikiXmlTpl, page.Title, pageTypeToMWNamespace[page.Type], time.Now().Format("2006-01-02T15:04:05Z"), wikiText)
+		for _, line := range str.Split(xmlData, "\n") {
+			p.OutLine <- line
+		}
+	}
+
+	p.OutLine <- "</mediawiki>"
 }
 
 // --------------------------------------------------------------------------------
@@ -447,11 +592,34 @@ func NewWikiPagePrinter() *WikiPagePrinter {
 
 func (p *WikiPagePrinter) Run() {
 	for page := range p.In {
-		fmt.Println("Title: ", page.Title)
+		fmt.Println("Title:", page.Title)
 		for _, fact := range page.Facts {
 			fmt.Printf("[[%s::%s]]\n", fact.Property, fact.Value)
 		}
+		for _, cat := range page.Categories {
+			fmt.Printf("[[Category:%s]]\n", cat)
+		}
 		fmt.Println("") // Print an empty line
+	}
+}
+
+// --------------------------------------------------------------------------------
+// Line Printer
+// --------------------------------------------------------------------------------
+
+type LinePrinter struct {
+	In chan string
+}
+
+func NewLinePrinter() *LinePrinter {
+	return &LinePrinter{
+		In: make(chan string, BUFSIZE),
+	}
+}
+
+func (p *LinePrinter) Run() {
+	for line := range p.In {
+		fmt.Println(line)
 	}
 }
 
@@ -492,19 +660,27 @@ func NewTripleAggregate(subj rdf.Subject, triples []rdf.Triple) *TripleAggregate
 // --------------------------------------------------------------------------------
 
 type WikiPage struct {
-	Title string
-	Facts []*Fact
+	Title      string
+	Type       int
+	Facts      []*Fact
+	Categories []string
 }
 
-func NewWikiPage(title string, facts []*Fact) *WikiPage {
+func NewWikiPage(title string, facts []*Fact, categories []string, pageType int) *WikiPage {
 	return &WikiPage{
-		Title: title,
-		Facts: facts,
+		Title:      title,
+		Facts:      facts,
+		Categories: categories,
+		Type:       pageType,
 	}
 }
 
 func (p *WikiPage) AddFact(fact *Fact) {
 	p.Facts = append(p.Facts, fact)
+}
+
+func (p *WikiPage) AddCategory(category string) {
+	p.Categories = append(p.Categories, category)
 }
 
 // Helper type: Fact

@@ -1,15 +1,17 @@
 Development TODO
 ================
 
-Components to develop
----------------------
+Components/things to develop
+----------------------------
 
 - [x] FileReader
 - [x] TripleParser
 - [x] TripleAggregator
-- [ ] ResolvePageTitle
-- [ ] TermsToWikiPages
-- [ ] TriplesToFacts
+- [x] TripleAggregateToWikiPage
+  - [x] Add Property: title namespace
+  - [x] Add Category: title namespace
+  - [x] Add Category wiki codes.
+  - [x] Add Equivalent URI facts.
 - [ ] FactsToTemplateCall
-- [ ] PagesToMWXML
-- [ ] FileWriter
+- [x] PagesToMWXML
+- [x] FileWriter
