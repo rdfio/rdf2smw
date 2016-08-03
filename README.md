@@ -22,6 +22,16 @@ more features and fixing bugs.
 
 For more detailed status, see [TODO.md](https://github.com/samuell/rdf2smw/blob/master/TODO.md)
 
+Installation
+------------
+
+For linux 64 bit:
+
+1. Download the file `rdf2smw_linux64.gz`, on the [latest release](https://github.com/samuell/rdf2smw/releases).
+2. Unpack it with: `gunzip rdf2smw_linux64.gz`
+3. Call it, on the commandline (see the usage section below).
+
+
 Usage
 -----
 
