@@ -520,11 +520,11 @@ func (p *MWXMLCreator) Run() {
 		wikiText := ""
 
 		for _, fact := range page.Facts {
-			wikiText += fmt.Sprintf("[[%s::%s]]\n", fact.Property, fact.Value)
+			wikiText += fmtFact(fact.Property, fact.Value)
 		}
 
 		for _, cat := range page.Categories {
-			wikiText += fmt.Sprintf("[[Category:%s]]\n", cat)
+			wikiText += fmtCategory(cat)
 		}
 
 		xmlData := fmt.Sprintf(wikiXmlTpl, page.Title, pageTypeToMWNamespace[page.Type], time.Now().Format("2006-01-02T15:04:05Z"), wikiText)
@@ -598,10 +598,10 @@ func (p *WikiPagePrinter) Run() {
 	for page := range p.In {
 		fmt.Println("Title:", page.Title)
 		for _, fact := range page.Facts {
-			fmt.Printf("[[%s::%s]]\n", fact.Property, fact.Value)
+			fmtFact(fact.Property, fact.Value)
 		}
 		for _, cat := range page.Categories {
-			fmt.Printf("[[Category:%s]]\n", cat)
+			fmt.Print(fmtCategory(cat))
 		}
 		fmt.Println("") // Print an empty line
 	}
@@ -699,4 +699,14 @@ func NewFact(property string, value string) *Fact {
 		Property: property,
 		Value:    value,
 	}
+}
+
+// Helper functions
+
+func fmtFact(property string, value string) string {
+	return "[[" + property + "::" + value + "]]\n"
+}
+
+func fmtCategory(category string) string {
+	return "[[Category:" + category + "]]\n"
 }
