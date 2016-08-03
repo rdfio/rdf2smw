@@ -236,13 +236,13 @@ func (proc *FanOutTripleAggregate) Run() {
 
 type CreateResourceIndex struct {
 	In  chan *TripleAggregate
-	Out chan map[string]*TripleAggregate
+	Out chan *map[string]*TripleAggregate
 }
 
 func NewCreateResourceIndex() *CreateResourceIndex {
 	return &CreateResourceIndex{
 		In:  make(chan *TripleAggregate, BUFSIZE),
-		Out: make(chan map[string]*TripleAggregate),
+		Out: make(chan *map[string]*TripleAggregate),
 	}
 }
 
@@ -254,7 +254,7 @@ func (p *CreateResourceIndex) Run() {
 		idx[aggr.SubjectStr] = aggr
 	}
 
-	p.Out <- idx
+	p.Out <- &idx
 }
 
 // --------------------------------------------------------------------------------
@@ -262,14 +262,14 @@ func (p *CreateResourceIndex) Run() {
 // --------------------------------------------------------------------------------
 
 type ResourceIndexFanOut struct {
-	In  chan map[string]*TripleAggregate
-	Out map[string]chan map[string]*TripleAggregate
+	In  chan *map[string]*TripleAggregate
+	Out map[string]chan *map[string]*TripleAggregate
 }
 
 func NewResourceIndexFanOut() *ResourceIndexFanOut {
 	return &ResourceIndexFanOut{
-		In:  make(chan map[string]*TripleAggregate),
-		Out: make(map[string]chan map[string]*TripleAggregate),
+		In:  make(chan *map[string]*TripleAggregate),
+		Out: make(map[string]chan *map[string]*TripleAggregate),
 	}
 }
 
@@ -290,13 +290,13 @@ func (p *ResourceIndexFanOut) Run() {
 // --------------------------------------------------------------------------------
 
 type ResourceIndexToTripleAggregates struct {
-	In  chan map[string]*TripleAggregate
+	In  chan *map[string]*TripleAggregate
 	Out chan *TripleAggregate
 }
 
 func NewResourceIndexToTripleAggregates() *ResourceIndexToTripleAggregates {
 	return &ResourceIndexToTripleAggregates{
-		In:  make(chan map[string]*TripleAggregate, BUFSIZE),
+		In:  make(chan *map[string]*TripleAggregate, BUFSIZE),
 		Out: make(chan *TripleAggregate, BUFSIZE),
 	}
 }
@@ -305,7 +305,7 @@ func (p *ResourceIndexToTripleAggregates) Run() {
 	defer close(p.Out)
 
 	for idx := range p.In {
-		for _, aggr := range idx {
+		for _, aggr := range *idx {
 			p.Out <- aggr
 		}
 	}
@@ -355,14 +355,14 @@ const (
 
 type TripleAggregateToWikiPageConverter struct {
 	InAggregate chan *TripleAggregate
-	InIndex     chan map[string]*TripleAggregate
+	InIndex     chan *map[string]*TripleAggregate
 	OutPage     chan *WikiPage
 }
 
 func NewTripleAggregateToWikiPageConverter() *TripleAggregateToWikiPageConverter {
 	return &TripleAggregateToWikiPageConverter{
 		InAggregate: make(chan *TripleAggregate, BUFSIZE),
-		InIndex:     make(chan map[string]*TripleAggregate, BUFSIZE),
+		InIndex:     make(chan *map[string]*TripleAggregate, BUFSIZE),
 		OutPage:     make(chan *WikiPage, BUFSIZE),
 	}
 }
@@ -381,7 +381,7 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 
 			_, propertyStr := p.convertUriToWikiTitle(tr.Pred.String(), URITypePredicate, resourceIndex) // Here we know it is a predicate, simply because its location in a triple
 
-			valueAggr := resourceIndex[tr.Obj.String()]
+			valueAggr := (*resourceIndex)[tr.Obj.String()]
 			valueUriType := p.determineType(valueAggr)
 			_, valueStr := p.convertUriToWikiTitle(tr.Obj.String(), valueUriType, resourceIndex)
 
@@ -424,9 +424,9 @@ func (p *TripleAggregateToWikiPageConverter) determineType(uriAggr *TripleAggreg
 // For properties, the factTitle and pageTitle will be different (The page
 // title including the "Property:" prefix), while for normal pages, they will
 // be the same.
-func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, uriType int, resourceIndex map[string]*TripleAggregate) (pageTitle string, factTitle string) {
+func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, uriType int, resourceIndex *map[string]*TripleAggregate) (pageTitle string, factTitle string) {
 
-	aggr := resourceIndex[uri]
+	aggr := (*resourceIndex)[uri]
 
 	// Conversion strategies:
 	// 1. Existing wiki title (in wiki, or cache)
