@@ -69,7 +69,8 @@ func main() {
 	//wikiPagePrinter := NewWikiPagePrinter()
 	//pipeRunner.AddProcess(wikiPagePrinter)
 
-	xmlCreator := NewMWXMLCreator()
+	useTemplates := true
+	xmlCreator := NewMWXMLCreator(useTemplates)
 	pipeRunner.AddProcess(xmlCreator)
 
 	printer := NewStringPrinter()
@@ -475,14 +476,16 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 // --------------------------------------------------------------------------------
 
 type MWXMLCreator struct {
-	InWikiPage chan *WikiPage
-	Out        chan string
+	InWikiPage   chan *WikiPage
+	Out          chan string
+	UseTemplates bool
 }
 
-func NewMWXMLCreator() *MWXMLCreator {
+func NewMWXMLCreator(useTemplates bool) *MWXMLCreator {
 	return &MWXMLCreator{
-		InWikiPage: make(chan *WikiPage, BUFSIZE),
-		Out:        make(chan string, BUFSIZE),
+		InWikiPage:   make(chan *WikiPage, BUFSIZE),
+		Out:          make(chan string, BUFSIZE),
+		UseTemplates: useTemplates,
 	}
 }
 
@@ -519,12 +522,35 @@ func (p *MWXMLCreator) Run() {
 
 		wikiText := ""
 
-		for _, fact := range page.Facts {
-			wikiText += fmtFact(fact.Property, fact.Value)
-		}
+		if p.UseTemplates && len(page.Categories) > 0 { // We need at least one category, as to name the (to-be) template
+			wikiText += "{{" + page.Categories[0] + "\n" // TODO: What to do when we have multipel categories?
 
-		for _, cat := range page.Categories {
-			wikiText += fmtCategory(cat)
+			// Add facts as parameters to the template
+			for _, fact := range page.Facts {
+				wikiText += "|" + fact.Property + "=" + fact.Value + "\n"
+			}
+
+			// Add categories as multi-valued call to the "categories" value of the template
+			wikiText += "|categories="
+			for i, cat := range page.Categories {
+				if i == 0 {
+					wikiText += cat
+				} else {
+					wikiText += "," + cat
+				}
+			}
+
+			wikiText += "\n}}"
+		} else {
+			// Add fact statements
+			for _, fact := range page.Facts {
+				wikiText += fmtFact(fact.Property, fact.Value)
+			}
+
+			// Add category statements
+			for _, cat := range page.Categories {
+				wikiText += fmtCategory(cat)
+			}
 		}
 
 		xmlData := fmt.Sprintf(wikiXmlTpl, page.Title, pageTypeToMWNamespace[page.Type], time.Now().Format("2006-01-02T15:04:05Z"), wikiText)
