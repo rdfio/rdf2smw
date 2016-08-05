@@ -72,7 +72,7 @@ func main() {
 	xmlCreator := NewMWXMLCreator()
 	pipeRunner.AddProcess(xmlCreator)
 
-	printer := NewLinePrinter()
+	printer := NewStringPrinter()
 	pipeRunner.AddProcess(printer)
 
 	// ------------------------------------------
@@ -92,7 +92,7 @@ func main() {
 
 	triplesToWikiConverter.OutPage = xmlCreator.InWikiPage
 
-	xmlCreator.OutLine = printer.In
+	xmlCreator.Out = printer.In
 
 	// ------------------------------------------
 	// Send in-data and run
@@ -476,13 +476,13 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 
 type MWXMLCreator struct {
 	InWikiPage chan *WikiPage
-	OutLine    chan string
+	Out        chan string
 }
 
 func NewMWXMLCreator() *MWXMLCreator {
 	return &MWXMLCreator{
 		InWikiPage: make(chan *WikiPage, BUFSIZE),
-		OutLine:    make(chan string, BUFSIZE),
+		Out:        make(chan string, BUFSIZE),
 	}
 }
 
@@ -511,9 +511,9 @@ var pageTypeToMWNamespace = map[int]int{
 }
 
 func (p *MWXMLCreator) Run() {
-	defer close(p.OutLine)
+	defer close(p.Out)
 
-	p.OutLine <- "<mediawiki>"
+	p.Out <- "<mediawiki>\n"
 
 	for page := range p.InWikiPage {
 
@@ -528,12 +528,12 @@ func (p *MWXMLCreator) Run() {
 		}
 
 		xmlData := fmt.Sprintf(wikiXmlTpl, page.Title, pageTypeToMWNamespace[page.Type], time.Now().Format("2006-01-02T15:04:05Z"), wikiText)
-		for _, line := range str.Split(xmlData, "\n") {
-			p.OutLine <- line
-		}
+
+		// Print out the generated XML one line at a time
+		p.Out <- xmlData
 	}
 
-	p.OutLine <- "</mediawiki>"
+	p.Out <- "</mediawiki>\n"
 }
 
 // --------------------------------------------------------------------------------
@@ -628,22 +628,22 @@ func (p *WikiPagePrinter) Run() {
 }
 
 // --------------------------------------------------------------------------------
-// Line Printer
+// String Printer
 // --------------------------------------------------------------------------------
 
-type LinePrinter struct {
+type StringPrinter struct {
 	In chan string
 }
 
-func NewLinePrinter() *LinePrinter {
-	return &LinePrinter{
+func NewStringPrinter() *StringPrinter {
+	return &StringPrinter{
 		In: make(chan string, BUFSIZE),
 	}
 }
 
-func (p *LinePrinter) Run() {
-	for line := range p.In {
-		fmt.Println(line)
+func (p *StringPrinter) Run() {
+	for s := range p.In {
+		fmt.Print(s)
 	}
 }
 
