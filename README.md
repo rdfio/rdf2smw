@@ -1,14 +1,15 @@
 RDF2SMW
 =======
 
-A tool to convert from RDF triples to Semantic MediaWiki facts (in MediaWiki
-XML export format).
+A (commandline) tool to convert from RDF triples to Semantic MediaWiki facts
+(in MediaWiki XML export format).
 
 It allows you too import RDF data into a Semantic MediaWiki, via MediaWiki's
 robust built-in XML import feature.
 
-RDF2SMW is based on the [FlowBase](https://github.com/flowbase/flowbase)
-flow-based programming micro-framework.
+It is written in Go for better performance than PHP, and has been able to
+process triples into pages in the [order of ~40K triples/s input, and ~10K pages/s](https://github.com/samuell/rdf2smw/releases/tag/v0.2)
+(depends on structure of the dataset).
 
 RDF2SMW is very similar to the RDF import function in the
 [RDFIO](https://github.com/rdfio/RDFIO) Semantic MediaWiki extension, but takes
@@ -17,8 +18,11 @@ the same go, RDF2SMW first converts RDF to an XML file outside of PHP (for
 better performance), and then importing using MediaWiki's built-in import
 function.
 
-**Status:** Basic MediaWiki XML generation now works. Work is being done on
-more features and fixing bugs.
+**Status:** The tool is now feature complete, and even writes facts via
+template calls, if a categorization (via owl:Class) of the subject can be done.
+What is lacking is more options to fine-tune things. Right now you'll have to
+modify the source code yourself if you need any customization. Hope to address
+this in the near future.
 
 For more detailed status, see [TODO.md](https://github.com/samuell/rdf2smw/blob/master/TODO.md)
 
@@ -35,10 +39,25 @@ For linux 64 bit:
 Usage
 -----
 
-(Note, you will not get XML output yet, just some intermediate representation!)
+Call the rdf2smw binary, specifying a file with triples in n-triples or turtle
+format, with the `--infile` flag. Output is written to stdout, so you have to
+redirect it to a file of a chosen name:
 
 ```bash
-go build
 ./rdf2smw --infile triples.nt > semantic_mediawiki_pages.xml
+```
+
+The resulting XML file, can then be imported into MediaWiki / Semantic
+MediaWiki, via the `importDump.php` maintenance script, located in the
+`maintenance` folder under the main mediawiki folder:
+
+```bash
 php <wikidir>/maintenance/importDump.php semantic_mediawiki_pages.xml
 ```
+
+Technical notes
+---------------
+
+RDF2SMW is based on the [FlowBase](https://github.com/flowbase/flowbase)
+flow-based programming micro-framework.
+
