@@ -4,12 +4,13 @@ RDF2SMW
 A (commandline) tool to convert from RDF triples to Semantic MediaWiki facts
 (in MediaWiki XML export format).
 
-It allows you too import RDF data into a Semantic MediaWiki, via MediaWiki's
-robust built-in XML import feature.
+It allows you too import RDF data into a [Semantic MediaWiki](http://semantic-mediawiki.org), via [MediaWiki](https://www.mediawiki.org)'s
+robust built-in [XML import feature](https://www.mediawiki.org/wiki/Manual:Importing_XML_dumps).
 
-It is written in Go for better performance than PHP, and has been able to
-process triples into pages in the [order of ~40K triples/s input, and ~10K pages/s](https://github.com/samuell/rdf2smw/releases/tag/v0.2)
-(depends on structure of the dataset).
+It is written in Go for way better performance than PHP. Without much
+optimizations, it has been able to process triples into pages in the [order of ~40K triples/s input, and ~10K pages/s](https://github.com/samuell/rdf2smw/releases/tag/v0.2)
+on an 2014 i5 Haswell processor (max 2.1GHz I think) running Xubuntu, although
+these numbers can be expected to depend a lot on the structure of the dataset.
 
 RDF2SMW is very similar to the RDF import function in the
 [RDFIO](https://github.com/rdfio/RDFIO) Semantic MediaWiki extension, but takes
