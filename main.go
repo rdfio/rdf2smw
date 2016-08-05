@@ -523,11 +523,12 @@ func (p *MWXMLCreator) Run() {
 		wikiText := ""
 
 		if p.UseTemplates && len(page.Categories) > 0 { // We need at least one category, as to name the (to-be) template
+
 			wikiText += "{{" + page.Categories[0] + "\n" // TODO: What to do when we have multipel categories?
 
 			// Add facts as parameters to the template
 			for _, fact := range page.Facts {
-				wikiText += "|" + fact.Property + "=" + fact.Value + "\n"
+				wikiText += "|" + str.Replace(fact.Property, " ", "_", -1) + "=" + fact.Value + "\n"
 			}
 
 			// Add categories as multi-valued call to the "categories" value of the template
@@ -542,6 +543,7 @@ func (p *MWXMLCreator) Run() {
 
 			wikiText += "\n}}"
 		} else {
+
 			// Add fact statements
 			for _, fact := range page.Facts {
 				wikiText += fmtFact(fact.Property, fact.Value)
@@ -551,6 +553,7 @@ func (p *MWXMLCreator) Run() {
 			for _, cat := range page.Categories {
 				wikiText += fmtCategory(cat)
 			}
+
 		}
 
 		xmlData := fmt.Sprintf(wikiXmlTpl, page.Title, pageTypeToMWNamespace[page.Type], time.Now().Format("2006-01-02T15:04:05Z"), wikiText)
