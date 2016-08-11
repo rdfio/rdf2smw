@@ -386,7 +386,7 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 			valueUriType := p.determineType(valueAggr)
 			_, valueStr := p.convertUriToWikiTitle(tr.Obj.String(), valueUriType, resourceIndex)
 
-			if valueUriType == URITypeClass && (tr.Pred.String() == typePropertyURI || tr.Pred.String() == subClassPropertyURI) {
+			if tr.Pred.String() == typePropertyURI || tr.Pred.String() == subClassPropertyURI {
 				page.AddCategory(valueStr)
 			} else {
 				fact := NewFact(propertyStr, valueStr)
