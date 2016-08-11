@@ -65,6 +65,9 @@ func main() {
 	triplesToWikiConverter := NewTripleAggregateToWikiPageConverter()
 	pipeRunner.AddProcess(triplesToWikiConverter)
 
+	//categoryFilterer := NewCategoryFilterer([]string{"DataEntry"})
+	//pipeRunner.AddProcess(categoryFilterer)
+
 	// Pretty-print wiki page data
 	//wikiPagePrinter := NewWikiPagePrinter()
 	//pipeRunner.AddProcess(wikiPagePrinter)
@@ -90,6 +93,9 @@ func main() {
 	indexFanOut.Out["conv"] = triplesToWikiConverter.InIndex
 
 	indexToAggr.Out = triplesToWikiConverter.InAggregate
+
+	//triplesToWikiConverter.OutPage = categoryFilterer.In
+	//categoryFilterer.Out = xmlCreator.InWikiPage
 
 	triplesToWikiConverter.OutPage = xmlCreator.InWikiPage
 
@@ -472,6 +478,36 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 }
 
 // --------------------------------------------------------------------------------
+// CategoryFilterer
+// --------------------------------------------------------------------------------
+
+type CategoryFilterer struct {
+	In         chan *WikiPage
+	Out        chan *WikiPage
+	Categories []string
+}
+
+func NewCategoryFilterer(categories []string) *CategoryFilterer {
+	return &CategoryFilterer{
+		In:         make(chan *WikiPage, BUFSIZE),
+		Out:        make(chan *WikiPage, BUFSIZE),
+		Categories: categories,
+	}
+}
+
+func (p *CategoryFilterer) Run() {
+	defer close(p.Out)
+	for page := range p.In {
+		for _, pageCat := range page.Categories {
+			if stringInSlice(pageCat, p.Categories) {
+				p.Out <- page
+				break
+			}
+		}
+	}
+}
+
+// --------------------------------------------------------------------------------
 // MW XML Creator
 // --------------------------------------------------------------------------------
 
@@ -764,4 +800,13 @@ func fmtFact(property string, value string) string {
 
 func fmtCategory(category string) string {
 	return "[[Category:" + category + "]]\n"
+}
+
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }
