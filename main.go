@@ -527,8 +527,14 @@ func (p *MWXMLCreator) Run() {
 			wikiText += "{{" + page.Categories[0] + "\n" // TODO: What to do when we have multipel categories?
 
 			// Add facts as parameters to the template
+			var lastProperty string
 			for _, fact := range page.Facts {
-				wikiText += "|" + str.Replace(fact.Property, " ", "_", -1) + "=" + fact.Value + "\n"
+				if fact.Property == lastProperty {
+					wikiText += "," + fact.Value + "\n"
+				} else {
+					wikiText += "|" + str.Replace(fact.Property, " ", "_", -1) + "=" + fact.Value + "\n"
+				}
+				lastProperty = fact.Property
 			}
 
 			// Add categories as multi-valued call to the "categories" value of the template
