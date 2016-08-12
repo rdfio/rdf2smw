@@ -41,11 +41,11 @@ Usage
 -----
 
 Call the rdf2smw binary, specifying a file with triples in n-triples or turtle
-format, with the `--infile` flag. Output is written to stdout, so you have to
-redirect it to a file of a chosen name:
+format, with the `--in` flag, and an output file in XML format with the
+`--out` flag, like so:
 
 ```bash
-./rdf2smw --infile triples.nt > semantic_mediawiki_pages.xml
+./rdf2smw --in triples.nt --out semantic_mediawiki_pages.xml
 ```
 
 The resulting XML file, can then be imported into MediaWiki / Semantic

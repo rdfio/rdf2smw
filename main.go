@@ -23,10 +23,20 @@ const (
 func main() {
 	flowbase.InitLogInfo()
 
-	inFileName := flag.String("infile", "", "The input file name")
+	inFileName := flag.String("in", "", "The input file name")
+	outFileName := flag.String("out", "", "The output file name")
 	flag.Parse()
+
+	doExit := false
 	if *inFileName == "" {
-		fmt.Println("No filename specified to --infile")
+		fmt.Println("No filename specified to --in")
+		doExit = true
+	} else if *outFileName == "" {
+		fmt.Println("No filename specified to --out")
+		doExit = true
+	}
+
+	if doExit {
 		os.Exit(1)
 	}
 
@@ -72,8 +82,10 @@ func main() {
 	xmlCreator := NewMWXMLCreator(useTemplates)
 	pipeRunner.AddProcess(xmlCreator)
 
-	printer := NewStringPrinter()
-	pipeRunner.AddProcess(printer)
+	//printer := NewStringPrinter()
+	//pipeRunner.AddProcess(printer)
+	strFileWriter := NewStringFileWriter(*outFileName)
+	pipeRunner.AddProcess(strFileWriter)
 
 	// ------------------------------------------
 	// Connect network
@@ -757,6 +769,33 @@ func NewStringPrinter() *StringPrinter {
 func (p *StringPrinter) Run() {
 	for s := range p.In {
 		fmt.Print(s)
+	}
+}
+
+// --------------------------------------------------------------------------------
+// String File Writer
+// --------------------------------------------------------------------------------
+
+type StringFileWriter struct {
+	In       chan string
+	fileName string
+}
+
+func NewStringFileWriter(fileName string) *StringFileWriter {
+	return &StringFileWriter{
+		In:       make(chan string, BUFSIZE),
+		fileName: fileName,
+	}
+}
+
+func (p *StringFileWriter) Run() {
+	fh, err := os.Create(p.fileName)
+	if err != nil {
+		panic("Could not create output file: " + err.Error())
+	}
+	defer fh.Close()
+	for s := range p.In {
+		fh.WriteString(s)
 	}
 }
 
