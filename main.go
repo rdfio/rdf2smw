@@ -38,12 +38,8 @@ func main() {
 	pipeRunner := flowbase.NewPipelineRunner()
 
 	// Read in-file
-	fileRead := NewFileReader()
-	pipeRunner.AddProcess(fileRead)
-
-	// Parse triples
-	parser := NewTripleParser()
-	pipeRunner.AddProcess(parser)
+	ttlFileRead := NewTurtleFileReader()
+	pipeRunner.AddProcess(ttlFileRead)
 
 	// Aggregate per subject
 	aggregator := NewAggregateTriplesPerSubject()
@@ -83,8 +79,7 @@ func main() {
 	// Connect network
 	// ------------------------------------------
 
-	fileRead.OutLine = parser.In
-	parser.Out = aggregator.In
+	ttlFileRead.OutTriple = aggregator.In
 
 	aggregator.Out = indexCreator.In
 
@@ -99,15 +94,15 @@ func main() {
 
 	triplesToWikiConverter.OutPage = xmlCreator.InWikiPage
 
-	xmlCreator.Out = printer.In
+	xmlCreator.Out = strFileWriter.In
 
 	// ------------------------------------------
 	// Send in-data and run
 	// ------------------------------------------
 
 	go func() {
-		defer close(fileRead.InFileName)
-		fileRead.InFileName <- *inFileName
+		defer close(ttlFileRead.InFileName)
+		ttlFileRead.InFileName <- *inFileName
 	}()
 
 	pipeRunner.Run()
@@ -152,6 +147,47 @@ func (p *FileReader) Run() {
 				log.Fatal(err)
 			}
 			p.OutLine <- sc.Text()
+		}
+	}
+}
+
+// --------------------------------------------------------------------------------
+// TurtleFileReader
+// --------------------------------------------------------------------------------
+
+type TurtleFileReader struct {
+	InFileName chan string
+	OutTriple  chan rdf.Triple
+}
+
+func NewTurtleFileReader() *TurtleFileReader {
+	return &TurtleFileReader{
+		InFileName: make(chan string, BUFSIZE),
+		OutTriple:  make(chan rdf.Triple, BUFSIZE),
+	}
+}
+
+func (p *TurtleFileReader) Run() {
+	defer close(p.OutTriple)
+
+	flowbase.Debug.Println("Starting loop")
+	for fileName := range p.InFileName {
+		flowbase.Debug.Printf("Starting processing file %s\n", fileName)
+		fh, err := os.Open(fileName)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer fh.Close()
+
+		dec := rdf.NewTripleDecoder(fh, rdf.Turtle)
+		for triple, err := dec.Decode(); err != io.EOF; triple, err = dec.Decode() {
+			if err != nil {
+				log.Fatal("Could not encode to triple: ", err.Error())
+			} else if triple.Subj != nil && triple.Pred != nil && triple.Obj != nil {
+				p.OutTriple <- triple
+			} else {
+				log.Fatal("Something was encoded as nil in the triple:", triple)
+			}
 		}
 	}
 }
