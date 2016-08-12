@@ -178,7 +178,13 @@ func (p *TripleParser) Run() {
 		lineReader := str.NewReader(line)
 		dec := rdf.NewTripleDecoder(lineReader, rdf.Turtle)
 		for triple, err := dec.Decode(); err != io.EOF; triple, err = dec.Decode() {
-			p.Out <- triple
+			if err != nil {
+				log.Fatal("Could not encode to triple: ", err.Error())
+			} else if triple.Subj != nil && triple.Pred != nil && triple.Obj != nil {
+				p.Out <- triple
+			} else {
+				log.Fatal("Something was encoded as nil in the triple:", triple)
+			}
 		}
 	}
 }
