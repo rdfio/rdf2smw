@@ -494,16 +494,8 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 	// Conversion strategies:
 	// 1. Existing wiki title (in wiki, or cache)
 	// 2. Use configured title-deciding properties
-	for _, titleProp := range titleProperties {
-		if aggr != nil {
-			for _, tr := range aggr.Triples {
-				if tr.Pred.String() == titleProp {
-					factTitle = tr.Obj.String()
-				}
-			}
-		} else {
-			factTitle = ""
-		}
+	if aggr != nil {
+		factTitle = p.findTitleInTriples(aggr.Triples)
 	}
 
 	// 3. Shorten URI namespace to alias (e.g. http://purl.org/dc -> dc:)
@@ -533,6 +525,17 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 	}
 
 	return pageTitle, factTitle
+}
+
+func (p *TripleAggregateToWikiPageConverter) findTitleInTriples(triples []rdf.Triple) string {
+	for _, titleProp := range titleProperties {
+		for _, tr := range triples {
+			if tr.Pred.String() == titleProp {
+				return tr.Obj.String()
+			}
+		}
+	}
+	return ""
 }
 
 // --------------------------------------------------------------------------------
