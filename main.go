@@ -536,8 +536,18 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 	// Clean up strange characters
 	factTitle = str.Replace(factTitle, "[", "(", -1)
 	factTitle = str.Replace(factTitle, "]", ")", -1)
-
 	factTitle = html.EscapeString(factTitle)
+
+	// Limit to max 255 chars (due to MediaWiki limitaiton)
+	titleIsShortened := false
+	for len(factTitle) >= 250 {
+		factTitle = removeLastWord(factTitle)
+		titleIsShortened = true
+	}
+
+	if titleIsShortened {
+		factTitle += " ..."
+	}
 
 	if uriType == URITypePredicate {
 		pageTitle = "Property:" + factTitle
@@ -920,4 +930,10 @@ func stringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func removeLastWord(inStr string) string {
+	bits := str.Split(inStr, " ")
+	outStr := str.Join(append(bits[:len(bits)-1]), " ")
+	return outStr
 }
