@@ -449,10 +449,33 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 			_, valueStr := p.convertUriToWikiTitle(tr.Obj.String(), valueUriType, resourceIndex)
 
 			if tr.Pred.String() == typePropertyURI || tr.Pred.String() == subClassPropertyURI {
-				page.AddCategory(valueStr)
+
+				catExists := false
+				for _, existingCat := range page.Categories {
+					if valueStr == existingCat {
+						catExists = true
+						break
+					}
+				}
+
+				if !catExists {
+					page.AddCategory(valueStr)
+				}
+
 			} else {
-				fact := NewFact(propertyStr, valueStr)
-				page.AddFact(fact)
+
+				factExists := false
+				for _, existingFact := range page.Facts {
+					if propertyStr == existingFact.Property && valueStr == existingFact.Value {
+						factExists = true
+						break
+					}
+				}
+
+				if !factExists {
+					fact := NewFact(propertyStr, valueStr)
+					page.AddFact(fact)
+				}
 			}
 		}
 
