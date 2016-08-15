@@ -63,3 +63,7 @@ Technical notes
 RDF2SMW is based on the [FlowBase](https://github.com/flowbase/flowbase)
 flow-based programming micro-framework.
 
+Acknowledgements
+----------------
+
+RDF2SMW makes heavy use of [Petter Goksøyr Åsen](https://github.com/boutros)'s awesome [RDF parsing library](https://github.com/knakk/rdf).
