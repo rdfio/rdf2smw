@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"os"
@@ -519,6 +520,8 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 	// Clean up strange characters
 	factTitle = str.Replace(factTitle, "[", "(", -1)
 	factTitle = str.Replace(factTitle, "]", ")", -1)
+
+	factTitle = html.EscapeString(factTitle)
 
 	if uriType == URITypePredicate {
 		pageTitle = "Property:" + factTitle
