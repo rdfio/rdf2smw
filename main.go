@@ -22,7 +22,7 @@ const (
 )
 
 func main() {
-	flowbase.InitLogInfo()
+	//flowbase.InitLogDebug()
 
 	inFileName := flag.String("in", "", "The input file name")
 	outFileName := flag.String("out", "", "The output file name")
@@ -46,47 +46,56 @@ func main() {
 	// ------------------------------------------
 
 	// Create a pipeline runner
-	pipeRunner := flowbase.NewPipelineRunner()
+	net := flowbase.NewPipelineRunner()
 
 	// Read in-file
 	ttlFileRead := NewTurtleFileReader()
-	pipeRunner.AddProcess(ttlFileRead)
+	net.AddProcess(ttlFileRead)
 
 	// Aggregate per subject
 	aggregator := NewAggregateTriplesPerSubject()
-	pipeRunner.AddProcess(aggregator)
+	net.AddProcess(aggregator)
 
 	// Create an subject-indexed "index" of all triples
 	indexCreator := NewCreateResourceIndex()
-	pipeRunner.AddProcess(indexCreator)
+	net.AddProcess(indexCreator)
 
 	// Fan-out the triple index to the converter and serializer
 	indexFanOut := NewResourceIndexFanOut()
-	pipeRunner.AddProcess(indexFanOut)
+	net.AddProcess(indexFanOut)
 
 	// Serialize the index back to individual subject-tripleaggregates
 	indexToAggr := NewResourceIndexToTripleAggregates()
-	pipeRunner.AddProcess(indexToAggr)
+	net.AddProcess(indexToAggr)
 
 	// Convert TripleAggregate to WikiPage
 	triplesToWikiConverter := NewTripleAggregateToWikiPageConverter()
-	pipeRunner.AddProcess(triplesToWikiConverter)
+	net.AddProcess(triplesToWikiConverter)
 
 	//categoryFilterer := NewCategoryFilterer([]string{"DataEntry"})
-	//pipeRunner.AddProcess(categoryFilterer)
+	//net.AddProcess(categoryFilterer)
 
 	// Pretty-print wiki page data
 	//wikiPagePrinter := NewWikiPagePrinter()
-	//pipeRunner.AddProcess(wikiPagePrinter)
+	//net.AddProcess(wikiPagePrinter)
 
 	useTemplates := true
 	xmlCreator := NewMWXMLCreator(useTemplates)
-	pipeRunner.AddProcess(xmlCreator)
+	net.AddProcess(xmlCreator)
 
 	//printer := NewStringPrinter()
-	//pipeRunner.AddProcess(printer)
-	strFileWriter := NewStringFileWriter(*outFileName)
-	pipeRunner.AddProcess(strFileWriter)
+	//net.AddProcess(printer)
+	templateWriter := NewStringFileWriter(str.Replace(*outFileName, ".xml", "_templates.xml", 1))
+	net.AddProcess(templateWriter)
+
+	propertyWriter := NewStringFileWriter(str.Replace(*outFileName, ".xml", "_properties.xml", 1))
+	net.AddProcess(propertyWriter)
+
+	pageWriter := NewStringFileWriter(*outFileName)
+	net.AddProcess(pageWriter)
+
+	snk := flowbase.NewSink()
+	net.AddProcess(snk)
 
 	// ------------------------------------------
 	// Connect network
@@ -107,7 +116,13 @@ func main() {
 
 	triplesToWikiConverter.OutPage = xmlCreator.InWikiPage
 
-	xmlCreator.Out = strFileWriter.In
+	xmlCreator.OutTemplates = templateWriter.In
+	xmlCreator.OutProperties = propertyWriter.In
+	xmlCreator.OutPages = pageWriter.In
+
+	snk.Connect(templateWriter.OutDone)
+	snk.Connect(propertyWriter.OutDone)
+	snk.Connect(pageWriter.OutDone)
 
 	// ------------------------------------------
 	// Send in-data and run
@@ -118,8 +133,7 @@ func main() {
 		ttlFileRead.InFileName <- *inFileName
 	}()
 
-	pipeRunner.Run()
-
+	net.Run()
 }
 
 // ================================================================================
@@ -419,6 +433,7 @@ const (
 	URITypeUndefined
 	URITypePredicate
 	URITypeClass
+	URITypeTemplate
 )
 
 // Code -----------------------------------------------------------------------
@@ -489,21 +504,8 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 			}
 
 			if tr.Pred.String() == typePropertyURI || tr.Pred.String() == subClassPropertyURI {
-
-				catExists := false
-				for _, existingCat := range page.Categories {
-					if valueStr == existingCat {
-						catExists = true
-						break
-					}
-				}
-
-				if !catExists {
-					page.AddCategory(valueStr)
-				}
-
+				page.AddCategoryUnique(valueStr)
 			} else {
-
 				page.AddFactUnique(NewFact(propertyStr, valueStr))
 			}
 		}
@@ -521,7 +523,7 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 					predPageIndex[page.Title].AddFactUnique(fact)
 				}
 				for _, cat := range page.Categories {
-					predPageIndex[page.Title].AddCategory(cat)
+					predPageIndex[page.Title].AddCategoryUnique(cat)
 				}
 			} else {
 				// If page does not exist, use the newly created one
@@ -599,6 +601,8 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 		factTitle += " ..."
 	}
 
+	factTitle = upperCaseFirst(factTitle)
+
 	if uriType == URITypePredicate {
 		pageTitle = "Property:" + factTitle
 	} else if uriType == URITypeClass {
@@ -656,16 +660,20 @@ func (p *CategoryFilterer) Run() {
 // --------------------------------------------------------------------------------
 
 type MWXMLCreator struct {
-	InWikiPage   chan *WikiPage
-	Out          chan string
-	UseTemplates bool
+	InWikiPage    chan *WikiPage
+	OutTemplates  chan string
+	OutProperties chan string
+	OutPages      chan string
+	UseTemplates  bool
 }
 
 func NewMWXMLCreator(useTemplates bool) *MWXMLCreator {
 	return &MWXMLCreator{
-		InWikiPage:   make(chan *WikiPage, BUFSIZE),
-		Out:          make(chan string, BUFSIZE),
-		UseTemplates: useTemplates,
+		InWikiPage:    make(chan *WikiPage, BUFSIZE),
+		OutTemplates:  make(chan string, BUFSIZE),
+		OutProperties: make(chan string, BUFSIZE),
+		OutPages:      make(chan string, BUFSIZE),
+		UseTemplates:  useTemplates,
 	}
 }
 
@@ -689,14 +697,20 @@ const wikiXmlTpl = `
 
 var pageTypeToMWNamespace = map[int]int{
 	URITypeClass:     14,
+	URITypeTemplate:  10,
 	URITypePredicate: 102,
 	URITypeUndefined: 0,
 }
 
 func (p *MWXMLCreator) Run() {
-	defer close(p.Out)
+	tplPropertyIdx := make(map[string]map[string]int)
 
-	p.Out <- "<mediawiki>\n"
+	defer close(p.OutTemplates)
+	defer close(p.OutProperties)
+	defer close(p.OutPages)
+
+	p.OutPages <- "<mediawiki>\n"
+	p.OutProperties <- "<mediawiki>\n"
 
 	for page := range p.InWikiPage {
 
@@ -704,21 +718,36 @@ func (p *MWXMLCreator) Run() {
 
 		if p.UseTemplates && len(page.Categories) > 0 { // We need at least one category, as to name the (to-be) template
 
-			wikiText += "{{" + page.Categories[0] + "\n" // TODO: What to do when we have multipel categories?
+			templateName := page.Categories[0]
+			templateTitle := "Template:" + templateName
 
-			// Add facts as parameters to the template
+			// Make sure template page exists
+			if tplPropertyIdx[templateTitle] == nil {
+				tplPropertyIdx[templateTitle] = make(map[string]int)
+			}
+
+			wikiText += "{{" + templateName + "\n" // TODO: What to do when we have multipel categories?
+
+			// Add facts as parameters to the template call
 			var lastProperty string
 			for _, fact := range page.Facts {
+				// Write facts to template call on current page
+
+				val := escapeWikiChars(fact.Value)
 				if fact.Property == lastProperty {
-					wikiText += "," + fact.Value + "\n"
+					wikiText += "," + val + "\n"
 				} else {
-					wikiText += "|" + str.Replace(fact.Property, " ", "_", -1) + "=" + fact.Value + "\n"
+					wikiText += "|" + spacesToUnderscores(fact.Property) + "=" + val + "\n"
 				}
+
 				lastProperty = fact.Property
+
+				// Add fact to the relevant template page
+				tplPropertyIdx[templateTitle][fact.Property] = 1
 			}
 
 			// Add categories as multi-valued call to the "categories" value of the template
-			wikiText += "|categories="
+			wikiText += "|Categories="
 			for i, cat := range page.Categories {
 				if i == 0 {
 					wikiText += cat
@@ -732,7 +761,7 @@ func (p *MWXMLCreator) Run() {
 
 			// Add fact statements
 			for _, fact := range page.Facts {
-				wikiText += fmtFact(fact.Property, fact.Value)
+				wikiText += fmtFact(fact.Property, escapeWikiChars(fact.Value))
 			}
 
 			// Add category statements
@@ -745,10 +774,33 @@ func (p *MWXMLCreator) Run() {
 		xmlData := fmt.Sprintf(wikiXmlTpl, page.Title, pageTypeToMWNamespace[page.Type], time.Now().Format("2006-01-02T15:04:05Z"), wikiText)
 
 		// Print out the generated XML one line at a time
-		p.Out <- xmlData
+		if page.Type == URITypePredicate {
+			p.OutProperties <- xmlData
+		} else {
+			p.OutPages <- xmlData
+		}
 	}
+	p.OutPages <- "</mediawiki>\n"
+	p.OutProperties <- "</mediawiki>\n"
 
-	p.Out <- "</mediawiki>\n"
+	p.OutTemplates <- "<mediawiki>\n"
+	// Create template pages
+	for tplName, tplProperties := range tplPropertyIdx {
+		tplText := `{|class="wikitable smwtable"
+!colspan="2"|{{PAGENAMEE}}
+`
+		for property, _ := range tplProperties {
+			argName := spacesToUnderscores(property)
+			tplText += fmt.Sprintf("|-\n!%s\n|{{#arraymap:{{{%s|}}}|,|x|[[%s::x]]|,}}\n", property, argName, property)
+		}
+		tplText += "|}\n\n"
+		// Add categories
+		tplText += "{{#arraymap:{{{Categories}}}|,|x|[[Category:x]]|}}\n"
+
+		xmlData := fmt.Sprintf(wikiXmlTpl, tplName, pageTypeToMWNamespace[URITypeTemplate], time.Now().Format("2006-01-02T15:04:05Z"), tplText)
+		p.OutTemplates <- xmlData
+	}
+	p.OutTemplates <- "</mediawiki>\n"
 }
 
 // --------------------------------------------------------------------------------
@@ -868,17 +920,21 @@ func (p *StringPrinter) Run() {
 
 type StringFileWriter struct {
 	In       chan string
+	OutDone  chan interface{}
 	fileName string
 }
 
 func NewStringFileWriter(fileName string) *StringFileWriter {
 	return &StringFileWriter{
 		In:       make(chan string, BUFSIZE),
+		OutDone:  make(chan interface{}, BUFSIZE),
 		fileName: fileName,
 	}
 }
 
 func (p *StringFileWriter) Run() {
+	defer close(p.OutDone)
+
 	fh, err := os.Create(p.fileName)
 	if err != nil {
 		panic("Could not create output file: " + err.Error())
@@ -887,7 +943,12 @@ func (p *StringFileWriter) Run() {
 	for s := range p.In {
 		fh.WriteString(s)
 	}
+
+	flowbase.Debug.Printf("Sending done signal on chan %v now in StringFileWriter ...\n", p.OutDone)
+	p.OutDone <- &DoneSignal{}
 }
+
+type DoneSignal struct{}
 
 // --------------------------------------------------------------------------------
 // IP: RDFTriple
@@ -962,6 +1023,19 @@ func (p *WikiPage) AddCategory(category string) {
 	p.Categories = append(p.Categories, category)
 }
 
+func (p *WikiPage) AddCategoryUnique(category string) {
+	catExists := false
+	for _, existingCat := range p.Categories {
+		if category == existingCat {
+			catExists = true
+			break
+		}
+	}
+	if !catExists {
+		p.AddCategory(category)
+	}
+}
+
 // Helper type: Fact
 
 type Fact struct {
@@ -998,5 +1072,25 @@ func stringInSlice(a string, list []string) bool {
 func removeLastWord(inStr string) string {
 	bits := str.Split(inStr, " ")
 	outStr := str.Join(append(bits[:len(bits)-1]), " ")
+	return outStr
+}
+
+func spacesToUnderscores(inStr string) string {
+	return str.Replace(inStr, " ", "_", -1)
+}
+
+func upperCaseFirst(inStr string) string {
+	var outStr string
+	if inStr != "" {
+		outStr = str.ToUpper(inStr[0:1]) + inStr[1:]
+	}
+	return outStr
+}
+
+func escapeWikiChars(inStr string) string {
+	outStr := str.Replace(inStr, "[", "(", -1)
+	outStr = str.Replace(outStr, "]", ")", -1)
+	outStr = str.Replace(outStr, "|", ",", -1)
+	outStr = str.Replace(outStr, "=", "-", -1)
 	return outStr
 }
