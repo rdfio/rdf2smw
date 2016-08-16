@@ -1108,5 +1108,7 @@ func escapeWikiChars(inStr string) string {
 	outStr = str.Replace(outStr, "]", ")", -1)
 	outStr = str.Replace(outStr, "|", ",", -1)
 	outStr = str.Replace(outStr, "=", "-", -1)
+	outStr = str.Replace(outStr, "<", "&lt;", -1)
+	outStr = str.Replace(outStr, ">", "&gt;", -1)
 	return outStr
 }
