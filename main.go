@@ -408,6 +408,13 @@ const (
 )
 
 const (
+	dataTypeURIString     = "http://www.w3.org/2001/XMLSchema#string"
+	dataTypeURILangString = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"
+	dataTypeURIInteger    = "http://www.w3.org/2001/XMLSchema#integer"
+	dataTypeURIFloat      = "http://www.w3.org/2001/XMLSchema#float"
+)
+
+const (
 	_ = iota
 	URITypeUndefined
 	URITypePredicate
@@ -432,7 +439,11 @@ func NewTripleAggregateToWikiPageConverter() *TripleAggregateToWikiPageConverter
 
 func (p *TripleAggregateToWikiPageConverter) Run() {
 	defer close(p.OutPage)
+
+	predPageIndex := make(map[string]*WikiPage)
+
 	resourceIndex := <-p.InIndex
+
 	for aggr := range p.InAggregate {
 		pageType := p.determineType(aggr)
 
@@ -442,11 +453,40 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 
 		for _, tr := range aggr.Triples {
 
-			_, propertyStr := p.convertUriToWikiTitle(tr.Pred.String(), URITypePredicate, resourceIndex) // Here we know it is a predicate, simply because its location in a triple
+			predTitle, propertyStr := p.convertUriToWikiTitle(tr.Pred.String(), URITypePredicate, resourceIndex) // Here we know it is a predicate, simply because its location in a triple
 
-			valueAggr := (*resourceIndex)[tr.Obj.String()]
-			valueUriType := p.determineType(valueAggr)
-			_, valueStr := p.convertUriToWikiTitle(tr.Obj.String(), valueUriType, resourceIndex)
+			// Make sure property page exists
+			if predPageIndex[predTitle] == nil {
+				predPageIndex[predTitle] = NewWikiPage(predTitle, []*Fact{}, []string{}, URITypePredicate)
+			}
+
+			var valueStr string
+
+			if tr.Obj.Type() == rdf.TermIRI {
+
+				valueAggr := (*resourceIndex)[tr.Obj.String()]
+				valueUriType := p.determineType(valueAggr)
+				_, valueStr = p.convertUriToWikiTitle(tr.Obj.String(), valueUriType, resourceIndex)
+
+				predPageIndex[predTitle].AddFactUnique(NewFact("Has type", "Page"))
+
+			} else if tr.Obj.Type() == rdf.TermLiteral {
+
+				valueStr = tr.Obj.String()
+				dataTypeStr := tr.Obj.(rdf.Literal).DataType.String()
+
+				// Add type info on the current property's page
+				switch dataTypeStr {
+				case dataTypeURIString:
+					predPageIndex[predTitle].AddFactUnique(NewFact("Has type", "Text"))
+				case dataTypeURILangString:
+					predPageIndex[predTitle].AddFactUnique(NewFact("Has type", "Text"))
+				case dataTypeURIInteger:
+					predPageIndex[predTitle].AddFactUnique(NewFact("Has type", "Number"))
+				case dataTypeURIFloat:
+					predPageIndex[predTitle].AddFactUnique(NewFact("Has type", "Number"))
+				}
+			}
 
 			if tr.Pred.String() == typePropertyURI || tr.Pred.String() == subClassPropertyURI {
 
@@ -464,26 +504,36 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 
 			} else {
 
-				factExists := false
-				for _, existingFact := range page.Facts {
-					if propertyStr == existingFact.Property && valueStr == existingFact.Value {
-						factExists = true
-						break
-					}
-				}
-
-				if !factExists {
-					fact := NewFact(propertyStr, valueStr)
-					page.AddFact(fact)
-				}
+				page.AddFactUnique(NewFact(propertyStr, valueStr))
 			}
 		}
 
 		// Add Equivalent URI fact
 		equivURIFact := NewFact("Equivalent URI", aggr.Subject.String())
-		page.AddFact(equivURIFact)
+		page.AddFactUnique(equivURIFact)
 
-		p.OutPage <- page
+		// Don't send predicates just yet (we want to gather facts about them,
+		// and send at the end) ...
+		if pageType == URITypePredicate {
+			if predPageIndex[page.Title] != nil {
+				// Add facts and categories to existing page
+				for _, fact := range page.Facts {
+					predPageIndex[page.Title].AddFactUnique(fact)
+				}
+				for _, cat := range page.Categories {
+					predPageIndex[page.Title].AddCategory(cat)
+				}
+			} else {
+				// If page does not exist, use the newly created one
+				predPageIndex[page.Title] = page
+			}
+		} else {
+			p.OutPage <- page
+		}
+	}
+
+	for _, predPage := range predPageIndex {
+		p.OutPage <- predPage
 	}
 }
 
@@ -893,6 +943,19 @@ func NewWikiPage(title string, facts []*Fact, categories []string, pageType int)
 
 func (p *WikiPage) AddFact(fact *Fact) {
 	p.Facts = append(p.Facts, fact)
+}
+
+func (p *WikiPage) AddFactUnique(fact *Fact) {
+	factExists := false
+	for _, existingFact := range p.Facts {
+		if fact.Property == existingFact.Property && fact.Value == existingFact.Value {
+			factExists = true
+			break
+		}
+	}
+	if !factExists {
+		p.AddFact(fact)
+	}
 }
 
 func (p *WikiPage) AddCategory(category string) {
