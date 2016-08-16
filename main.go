@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"regexp"
 	str "strings"
 	"time"
 
@@ -439,9 +440,10 @@ const (
 // Code -----------------------------------------------------------------------
 
 type TripleAggregateToWikiPageConverter struct {
-	InAggregate chan *TripleAggregate
-	InIndex     chan *map[string]*TripleAggregate
-	OutPage     chan *WikiPage
+	InAggregate    chan *TripleAggregate
+	InIndex        chan *map[string]*TripleAggregate
+	OutPage        chan *WikiPage
+	cleanUpRegexes []*regexp.Regexp
 }
 
 func NewTripleAggregateToWikiPageConverter() *TripleAggregateToWikiPageConverter {
@@ -449,6 +451,10 @@ func NewTripleAggregateToWikiPageConverter() *TripleAggregateToWikiPageConverter
 		InAggregate: make(chan *TripleAggregate, BUFSIZE),
 		InIndex:     make(chan *map[string]*TripleAggregate, BUFSIZE),
 		OutPage:     make(chan *WikiPage, BUFSIZE),
+		cleanUpRegexes: []*regexp.Regexp{
+			regexp.MustCompile(" [(][^)]*:[^)]*[)]"),
+			regexp.MustCompile(" [[][^]]*:[^]]*[]]"),
+		},
 	}
 }
 
@@ -488,6 +494,11 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 			} else if tr.Obj.Type() == rdf.TermLiteral {
 
 				valueStr = tr.Obj.String()
+
+				for _, r := range p.cleanUpRegexes {
+					valueStr = r.ReplaceAllString(valueStr, "")
+				}
+
 				dataTypeStr := tr.Obj.(rdf.Literal).DataType.String()
 
 				// Add type info on the current property's page
@@ -589,6 +600,11 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 	factTitle = str.Replace(factTitle, "[", "(", -1)
 	factTitle = str.Replace(factTitle, "]", ")", -1)
 	factTitle = html.EscapeString(factTitle)
+
+	// Clean up according to regexes
+	for _, r := range p.cleanUpRegexes {
+		factTitle = r.ReplaceAllString(factTitle, "")
+	}
 
 	// Limit to max 255 chars (due to MediaWiki limitaiton)
 	titleIsShortened := false
