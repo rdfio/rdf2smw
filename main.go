@@ -470,7 +470,7 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 
 		pageTitle, _ := p.convertUriToWikiTitle(aggr.SubjectStr, pageType, resourceIndex)
 
-		page := NewWikiPage(pageTitle, []*Fact{}, []string{}, pageType)
+		page := NewWikiPage(pageTitle, []*Fact{}, []string{}, "", pageType)
 
 		for _, tr := range aggr.Triples {
 
@@ -478,7 +478,7 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 
 			// Make sure property page exists
 			if predPageIndex[predTitle] == nil {
-				predPageIndex[predTitle] = NewWikiPage(predTitle, []*Fact{}, []string{}, URITypePredicate)
+				predPageIndex[predTitle] = NewWikiPage(predTitle, []*Fact{}, []string{}, "", URITypePredicate)
 			}
 
 			var valueStr string
@@ -516,6 +516,17 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 
 			if tr.Pred.String() == typePropertyURI || tr.Pred.String() == subClassPropertyURI {
 				page.AddCategoryUnique(valueStr)
+
+				// Check if the category is a subcategory of another one, and if so, store separately
+				catPage := (*resourceIndex)[tr.Obj.String()]
+				if catPage != nil {
+					for _, subTr := range catPage.Triples {
+						if subTr.Pred.String() == typePropertyURI || subTr.Pred.String() == subClassPropertyURI {
+							page.SpecificCategory = valueStr
+						}
+					}
+				}
+
 			} else {
 				page.AddFactUnique(NewFact(propertyStr, valueStr))
 			}
@@ -734,7 +745,13 @@ func (p *MWXMLCreator) Run() {
 
 		if p.UseTemplates && len(page.Categories) > 0 { // We need at least one category, as to name the (to-be) template
 
-			templateName := page.Categories[0]
+			var templateName string
+			if page.SpecificCategory != "" {
+				templateName = page.SpecificCategory
+			} else {
+				// Pick last item (biggest chance to be pretty specific?)
+				templateName = page.Categories[len(page.Categories)-1]
+			}
 			templateTitle := "Template:" + templateName
 
 			// Make sure template page exists
@@ -1003,18 +1020,20 @@ func NewTripleAggregate(subj rdf.Subject, triples []rdf.Triple) *TripleAggregate
 // --------------------------------------------------------------------------------
 
 type WikiPage struct {
-	Title      string
-	Type       int
-	Facts      []*Fact
-	Categories []string
+	Title            string
+	Type             int
+	Facts            []*Fact
+	Categories       []string
+	SpecificCategory string
 }
 
-func NewWikiPage(title string, facts []*Fact, categories []string, pageType int) *WikiPage {
+func NewWikiPage(title string, facts []*Fact, categories []string, specificCategory string, pageType int) *WikiPage {
 	return &WikiPage{
-		Title:      title,
-		Facts:      facts,
-		Categories: categories,
-		Type:       pageType,
+		Title:            title,
+		Facts:            facts,
+		Categories:       categories,
+		SpecificCategory: specificCategory,
+		Type:             pageType,
 	}
 }
 
