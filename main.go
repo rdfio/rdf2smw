@@ -472,6 +472,7 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 
 		page := NewWikiPage(pageTitle, []*Fact{}, []string{}, "", pageType)
 
+		topSuperCatsCnt := 0
 		for _, tr := range aggr.Triples {
 
 			predTitle, propertyStr := p.convertUriToWikiTitle(tr.Pred.String(), URITypePredicate, resourceIndex) // Here we know it is a predicate, simply because its location in a triple
@@ -516,17 +517,12 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 
 			if tr.Pred.String() == typePropertyURI || tr.Pred.String() == subClassPropertyURI {
 				page.AddCategoryUnique(valueStr)
-
-				// Check if the category is a subcategory of another one, and if so, store separately
-				catPage := (*resourceIndex)[tr.Obj.String()]
-				if catPage != nil {
-					for _, subTr := range catPage.Triples {
-						if subTr.Pred.String() == typePropertyURI || subTr.Pred.String() == subClassPropertyURI {
-							page.SpecificCategory = valueStr
-						}
-					}
+				superCatsCnt := countSuperCategories(tr, resourceIndex)
+				if superCatsCnt > topSuperCatsCnt {
+					topSuperCatsCnt = superCatsCnt
+					page.SpecificCategory = valueStr
+					//println("Page:", page.Title, " | Adding cat", valueStr, "since has", superCatsCnt, "super categories.")
 				}
-
 			} else {
 				page.AddFactUnique(NewFact(propertyStr, valueStr))
 			}
@@ -751,6 +747,7 @@ func (p *MWXMLCreator) Run() {
 			} else {
 				// Pick last item (biggest chance to be pretty specific?)
 				templateName = page.Categories[len(page.Categories)-1]
+				//println("Page ", page.Title, " | Didn't have a specific catogory, so selected ", templateName)
 			}
 			templateTitle := "Template:" + templateName
 
@@ -1130,4 +1127,20 @@ func escapeWikiChars(inStr string) string {
 	outStr = str.Replace(outStr, "<", "&lt;", -1)
 	outStr = str.Replace(outStr, ">", "&gt;", -1)
 	return outStr
+}
+
+func countSuperCategories(tr rdf.Triple, ri *map[string]*TripleAggregate) int {
+	catPage := (*ri)[tr.Obj.String()]
+	topSuperCatsCnt := 0
+	if catPage != nil {
+		for _, subTr := range catPage.Triples {
+			if subTr.Pred.String() == typePropertyURI || subTr.Pred.String() == subClassPropertyURI {
+				superCatsCnt := countSuperCategories(subTr, ri) + 1
+				if superCatsCnt > topSuperCatsCnt {
+					topSuperCatsCnt = superCatsCnt
+				}
+			}
+		}
+	}
+	return topSuperCatsCnt
 }
