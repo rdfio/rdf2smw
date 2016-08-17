@@ -825,7 +825,7 @@ func (p *MWXMLCreator) Run() {
 	// Create template pages
 	for tplName, tplProperties := range tplPropertyIdx {
 		tplText := `{|class="wikitable smwtable"
-!colspan="2"|{{PAGENAMEE}}
+!colspan="2"| ` + str.Replace(tplName, "Template:", "", -1) + `: {{PAGENAMEE}}
 `
 		for property, _ := range tplProperties {
 			argName := spacesToUnderscores(property)
