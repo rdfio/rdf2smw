@@ -1,6 +1,9 @@
 rdf2smw
 =======
 
+Import / convert RDF data into a Semantic MediaWiki
+---------------------------------------------------
+
 A commandline tool to convert from RDF triples to [Semantic MediaWiki](http://semantic-mediawiki.org) facts
 in MediaWiki XML export format to be used with [MediaWiki](https://www.mediawiki.org)'s built-in
 [XML import feature](https://www.mediawiki.org/wiki/Manual:Importing_XML_dumps).
