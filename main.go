@@ -613,6 +613,7 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 	factTitle = str.Replace(factTitle, ">", "greater than", -1)
 	factTitle = str.Replace(factTitle, "?", " ", -1)
 	factTitle = str.Replace(factTitle, "&", " ", -1)
+	factTitle = str.Replace(factTitle, ",", " ", -1) // Can't allow comma's as we use it as a separator in template variables
 	factTitle = str.Replace(factTitle, ".", " ", -1)
 	factTitle = str.Replace(factTitle, "=", "-", -1)
 
