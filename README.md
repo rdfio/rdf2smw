@@ -28,6 +28,18 @@ of the subject can be done.  What is lacking is more options to fine-tune
 things. Right now you'll have to modify the source code yourself if you need
 any customization. Hope to address this in the near future.
 
+Dependencies
+------------
+
+The tool itself does not have any dependencies, apart from a unix-like
+operating system. For importing the generated XML dump file to make sense
+though, you will need a web server, PHP, MediaWiki and Semantic MediaWiki.
+
+An automated virtualbox generation script (so valled "vagrant box"), with all
+of this, plus the RDFIO extension, can be found
+[here](https://github.com/samuell/rdfio-vagrantbox), and is highly recommended,
+if you don't have a MediaWiki / SemanticMediawiki installation already!
+
 Installation
 ------------
 
