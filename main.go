@@ -46,7 +46,7 @@ func main() {
 	// ------------------------------------------
 
 	// Create a pipeline runner
-	net := flowbase.NewPipelineRunner()
+	net := flowbase.NewNet()
 
 	// Read in-file
 	ttlFileRead := NewTurtleFileReader()
