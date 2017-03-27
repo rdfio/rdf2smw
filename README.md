@@ -83,6 +83,11 @@ Note that the order above is highly recommended (templates, then properties,
 then the rest), so as to avoid unnecessary re-computing of semantic data after
 the import is done.
 
+Known limitations
+-----------------
+
+Only N-triples is supported as input format right now. We plan to add more formats shortly.
+
 Technical notes
 ---------------
 
