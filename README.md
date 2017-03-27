@@ -1,6 +1,11 @@
 rdf2smw
 =======
 
+News
+----
+
+**rdf2smw** was covered in a talk at SMWCon in Frankfurt, Sep 2017. See: [Talk page](https://www.semantic-mediawiki.org/wiki/SMWCon_Fall_2016/Batch_import_of_large_RDF_datasets_using_RDFIO_or_the_new_rdf2smw_tool), [Slides](https://www.slideshare.net/SamuelLampa/batch-import-of-large-rdf-datasets-into-semantic-mediawiki), [Video](https://www.youtube.com/watch?v=k70er1u1ZYs).
+
 Import / convert RDF data into a Semantic MediaWiki
 ---------------------------------------------------
 
