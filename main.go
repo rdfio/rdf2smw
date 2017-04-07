@@ -1,5 +1,23 @@
-// Workflow written in SciPipe.
-// For more information about SciPipe, see: http://scipipe.org
+/*
+rdf2smw is a commandline tool to convert from RDF data to MediaWiki XML Dump
+files, for import using MediaWiki's built in importDump.php script.
+
+Usage
+
+	./rdf2smw -in <infile> -out <outfile>
+
+Flags
+
+	-in  Input file in RDF N-triples format
+	-out Output file in (MediaWiki) XML format
+
+Example usage
+
+	./rdf2smw -in mydata.nt -out mydata.xml
+
+For importing the generated XML Dumps into MediaWiki, see this page:
+https://www.mediawiki.org/wiki/Manual:Importing_XML_dumps
+*/
 package main
 
 import (
