@@ -7,7 +7,8 @@ machine:
 
 test:
   override:
-    - go test -v -race ./... | go-junit-report > report.xml
+    - mkdir -p $CIRCLE_TEST_REPORTS/go-junit
+    - go test -v -race ./... | go-junit-report > $CIRCLE_TEST_REPORTS/go-junit/report.xml
     - go test -v -race -coverprofile=cover.out ./...
     - gocov convert cover.out | gocov-xml > coverage.xml
   post:
