@@ -1,6 +1,8 @@
 rdf2smw
 =======
 
+[![CircleCI](https://img.shields.io/circleci/project/github/rdfio/rdf2smw.svg)](https://circleci.com/gh/rdfio/rdf2smw)
+
 News
 ----
 
