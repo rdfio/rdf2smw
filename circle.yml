@@ -1,0 +1,14 @@
+---
+machine:
+  post:
+    - go get github.com/jstemmer/go-junit-report
+    - go get github.com/axw/gocov/gocov
+    - go get github.com/AlekSi/gocov-xml
+
+test:
+  override:
+    - go test -v -race ./... | go-junit-report > report.xml
+    - go test -v -race -coverprofile=cover.out ./...
+    - gocov convert cover.out | gocov-xml > coverage.xml
+  post:
+    - bash <(curl -s https://codecov.io/bash)
