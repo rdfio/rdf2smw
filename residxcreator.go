@@ -1,18 +1,18 @@
 package main
 
-type CreateResourceIndex struct {
+type ResourceIndexCreator struct {
 	In  chan *TripleAggregate
 	Out chan *map[string]*TripleAggregate
 }
 
-func NewCreateResourceIndex() *CreateResourceIndex {
-	return &CreateResourceIndex{
+func NewResourceIndexCreator() *ResourceIndexCreator {
+	return &ResourceIndexCreator{
 		In:  make(chan *TripleAggregate, BUFSIZE),
 		Out: make(chan *map[string]*TripleAggregate),
 	}
 }
 
-func (p *CreateResourceIndex) Run() {
+func (p *ResourceIndexCreator) Run() {
 	defer close(p.Out)
 
 	idx := make(map[string]*TripleAggregate)

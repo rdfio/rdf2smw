@@ -69,7 +69,7 @@ func main() {
 	net.AddProcess(aggregator)
 
 	// Create an subject-indexed "index" of all triples
-	indexCreator := NewCreateResourceIndex()
+	indexCreator := NewResourceIndexCreator()
 	net.AddProcess(indexCreator)
 
 	// Fan-out the triple index to the converter and serializer
