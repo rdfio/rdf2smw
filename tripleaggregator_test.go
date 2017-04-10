@@ -51,9 +51,13 @@ func TestTripleAggregator(t *testing.T) {
 	go aggregator.Run()
 
 	aggr1 := <-aggregator.Out
-	if aggr1.Subject.String() != "http://example.org/s1" {
-		t.Error("Subject of first aggregate is wrong")
+	aggr2 := <-aggregator.Out
+
+	if aggr1.Subject.String() == "http://example.org/s2" {
+		// Swap order of variables
+		aggr1, aggr2 = aggr2, aggr1
 	}
+
 	for i, tr := range aggr1.Triples {
 		j := i + 1
 
@@ -78,7 +82,6 @@ func TestTripleAggregator(t *testing.T) {
 		}
 	}
 
-	aggr2 := <-aggregator.Out
 	if aggr2.Subject.String() != "http://example.org/s2" {
 		t.Error("Subject of second aggregate is wrong")
 	}
