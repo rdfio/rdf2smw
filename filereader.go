@@ -12,11 +12,15 @@ import (
 // FileReader
 // --------------------------------------------------------------------------------
 
+// FileReader is a process that reads files, based on filenames it receives on the
+// FileReader.InFileName port / channel, and writes out the output line by line
+// as strings on the FileReader.OutLine port / channel.
 type FileReader struct {
 	InFileName chan string
 	OutLine    chan string
 }
 
+// NewFileReader returns an initialized FileReader.
 func NewFileReader() *FileReader {
 	return &FileReader{
 		InFileName: make(chan string, BUFSIZE),
@@ -24,6 +28,7 @@ func NewFileReader() *FileReader {
 	}
 }
 
+// Run runs the FileReader process.
 func (p *FileReader) Run() {
 	defer close(p.OutLine)
 
