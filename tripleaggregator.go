@@ -2,19 +2,19 @@ package main
 
 import "github.com/knakk/rdf"
 
-type AggregateTriplesPerSubject struct {
+type TripleAggregator struct {
 	In  chan rdf.Triple
 	Out chan *TripleAggregate
 }
 
-func NewAggregateTriplesPerSubject() *AggregateTriplesPerSubject {
-	return &AggregateTriplesPerSubject{
+func NewTripleAggregator() *TripleAggregator {
+	return &TripleAggregator{
 		In:  make(chan rdf.Triple, BUFSIZE),
 		Out: make(chan *TripleAggregate, BUFSIZE),
 	}
 }
 
-func (p *AggregateTriplesPerSubject) Run() {
+func (p *TripleAggregator) Run() {
 	defer close(p.Out)
 	resourceIndex := make(map[rdf.Subject][]rdf.Triple)
 	for triple := range p.In {

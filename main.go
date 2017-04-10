@@ -64,8 +64,8 @@ func main() {
 	ttlFileRead := NewOsTurtleFileReader()
 	net.AddProcess(ttlFileRead)
 
-	// Aggregate per subject
-	aggregator := NewAggregateTriplesPerSubject()
+	// TripleAggregator
+	aggregator := NewTripleAggregator()
 	net.AddProcess(aggregator)
 
 	// Create an subject-indexed "index" of all triples
