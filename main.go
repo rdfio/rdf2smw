@@ -807,7 +807,7 @@ func (p *MWXMLCreator) Run() {
 		tplText := `{|class="wikitable smwtable"
 !colspan="2"| ` + str.Replace(tplName, "Template:", "", -1) + `: {{PAGENAMEE}}
 `
-		for property, _ := range tplProperties {
+		for property := range tplProperties {
 			argName := spacesToUnderscores(property)
 			tplText += fmt.Sprintf("|-\n!%s\n|{{#arraymap:{{{%s|}}}|,|x|[[%s::x]]|,}}\n", property, argName, property)
 		}
