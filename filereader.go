@@ -41,7 +41,7 @@ func NewFileReader(fileSystem afero.Fs) *FileReader {
 func (p *FileReader) Run() {
 	defer close(p.OutLine)
 
-	flowbase.Debug.Println("Starting loop")
+	//flowbase.Debug.Println("Starting loop")
 	for fileName := range p.InFileName {
 		flowbase.Debug.Printf("Starting processing file %s\n", fileName)
 		fh, err := p.fs.Open(fileName)
