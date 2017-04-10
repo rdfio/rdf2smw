@@ -85,7 +85,7 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 
 		pageTitle, _ := p.convertUriToWikiTitle(aggr.SubjectStr, pageType, resourceIndex)
 
-		page := NewWikiPage(pageTitle, []*Fact{}, []string{}, "", pageType)
+		page := NewWikiPage(pageTitle, []*Fact{}, []*Category{}, nil, pageType)
 
 		topSuperCatsCnt := 0
 		for _, tr := range aggr.Triples {
@@ -94,7 +94,7 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 
 			// Make sure property page exists
 			if predPageIndex[predTitle] == nil {
-				predPageIndex[predTitle] = NewWikiPage(predTitle, []*Fact{}, []string{}, "", URITypePredicate)
+				predPageIndex[predTitle] = NewWikiPage(predTitle, []*Fact{}, []*Category{}, nil, URITypePredicate)
 			}
 
 			var valueStr string
@@ -131,11 +131,11 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 			}
 
 			if tr.Pred.String() == typePropertyURI || tr.Pred.String() == subClassPropertyURI {
-				page.AddCategoryUnique(valueStr)
+				page.AddCategoryUnique(NewCategory(valueStr))
 				superCatsCnt := p.countSuperCategories(tr, resourceIndex)
 				if superCatsCnt > topSuperCatsCnt {
 					topSuperCatsCnt = superCatsCnt
-					page.SpecificCategory = valueStr
+					page.SpecificCategory = NewCategory(valueStr)
 					//println("Page:", page.Title, " | Adding cat", valueStr, "since has", superCatsCnt, "super categories.")
 				}
 			} else {

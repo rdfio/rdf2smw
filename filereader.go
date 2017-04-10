@@ -12,7 +12,7 @@ import (
 // FileReader
 // --------------------------------------------------------------------------------
 
-// FileReader is a process that reads files, based on filenames it receives on the
+// FileReader is a process that reads files, based on file names it receives on the
 // FileReader.InFileName port / channel, and writes out the output line by line
 // as strings on the FileReader.OutLine port / channel.
 type FileReader struct {

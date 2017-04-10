@@ -23,7 +23,7 @@ func (p *WikiPagePrinter) Run() {
 			fmt.Print(fact.asWikiFact())
 		}
 		for _, cat := range page.Categories {
-			fmt.Print(fmtCategory(cat))
+			fmt.Print(cat.asWikiString())
 		}
 		fmt.Println("") // Print an empty line
 	}

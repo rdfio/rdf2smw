@@ -147,11 +147,3 @@ func main() {
 
 	net.Run()
 }
-
-// ------------------------------------------------------------
-// Helper functions
-// ------------------------------------------------------------
-
-func fmtCategory(category string) string {
-	return "[[Category:" + category + "]]\n"
-}

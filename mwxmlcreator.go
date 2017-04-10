@@ -66,11 +66,11 @@ func (p *MWXMLCreator) Run() {
 		if p.UseTemplates && len(page.Categories) > 0 { // We need at least one category, as to name the (to-be) template
 
 			var templateName string
-			if page.SpecificCategory != "" {
-				templateName = page.SpecificCategory
+			if page.SpecificCategory.Name != "" {
+				templateName = page.SpecificCategory.Name
 			} else {
 				// Pick last item (biggest chance to be pretty specific?)
-				templateName = page.Categories[len(page.Categories)-1]
+				templateName = page.Categories[len(page.Categories)-1].Name
 				//println("Page ", page.Title, " | Didn't have a specific catogory, so selected ", templateName)
 			}
 			templateTitle := "Template:" + templateName
@@ -104,9 +104,9 @@ func (p *MWXMLCreator) Run() {
 			wikiText += "|Categories="
 			for i, cat := range page.Categories {
 				if i == 0 {
-					wikiText += cat
+					wikiText += cat.Name
 				} else {
-					wikiText += "," + cat
+					wikiText += "," + cat.Name
 				}
 			}
 
@@ -120,7 +120,7 @@ func (p *MWXMLCreator) Run() {
 
 			// Add category statements
 			for _, cat := range page.Categories {
-				wikiText += fmtCategory(cat)
+				wikiText += cat.asWikiString()
 			}
 
 		}
