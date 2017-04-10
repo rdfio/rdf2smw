@@ -132,7 +132,7 @@ func (p *TripleAggregateToWikiPageConverter) Run() {
 
 			if tr.Pred.String() == typePropertyURI || tr.Pred.String() == subClassPropertyURI {
 				page.AddCategoryUnique(valueStr)
-				superCatsCnt := countSuperCategories(tr, resourceIndex)
+				superCatsCnt := p.countSuperCategories(tr, resourceIndex)
 				if superCatsCnt > topSuperCatsCnt {
 					topSuperCatsCnt = superCatsCnt
 					page.SpecificCategory = valueStr
@@ -249,7 +249,7 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 		factTitle += " ..."
 	}
 
-	factTitle = upperCaseFirst(factTitle)
+	factTitle = p.upperCaseFirst(factTitle)
 
 	if uriType == URITypePredicate {
 		pageTitle = "Property:" + factTitle
@@ -271,4 +271,34 @@ func (p *TripleAggregateToWikiPageConverter) findTitleInTriples(triples []rdf.Tr
 		}
 	}
 	return ""
+}
+
+func (p *TripleAggregateToWikiPageConverter) countSuperCategories(tr rdf.Triple, ri *map[string]*TripleAggregate) int {
+	catPage := (*ri)[tr.Obj.String()]
+	topSuperCatsCnt := 0
+	if catPage != nil {
+		for _, subTr := range catPage.Triples {
+			if subTr.Pred.String() == typePropertyURI || subTr.Pred.String() == subClassPropertyURI {
+				superCatsCnt := p.countSuperCategories(subTr, ri) + 1
+				if superCatsCnt > topSuperCatsCnt {
+					topSuperCatsCnt = superCatsCnt
+				}
+			}
+		}
+	}
+	return topSuperCatsCnt
+}
+
+func (p *TripleAggregateToWikiPageConverter) upperCaseFirst(inStr string) string {
+	var outStr string
+	if inStr != "" {
+		outStr = str.ToUpper(inStr[0:1]) + inStr[1:]
+	}
+	return outStr
+}
+
+func removeLastWord(inStr string) string {
+	bits := str.Split(inStr, " ")
+	outStr := str.Join(append(bits[:len(bits)-1]), " ")
+	return outStr
 }

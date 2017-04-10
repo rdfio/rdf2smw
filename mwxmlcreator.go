@@ -115,7 +115,7 @@ func (p *MWXMLCreator) Run() {
 
 			// Add fact statements
 			for _, fact := range page.Facts {
-				wikiText += fmtFact(fact.Property, escapeWikiChars(fact.Value))
+				wikiText += fact.asWikiFact()
 			}
 
 			// Add category statements
@@ -155,4 +155,19 @@ func (p *MWXMLCreator) Run() {
 		p.OutTemplates <- xmlData
 	}
 	p.OutTemplates <- "</mediawiki>\n"
+}
+
+func spacesToUnderscores(inStr string) string {
+	return str.Replace(inStr, " ", "_", -1)
+}
+
+// TODO: Probably move out to separate component!
+func escapeWikiChars(inStr string) string {
+	outStr := str.Replace(inStr, "[", "(", -1)
+	outStr = str.Replace(outStr, "]", ")", -1)
+	outStr = str.Replace(outStr, "|", ",", -1)
+	outStr = str.Replace(outStr, "=", "-", -1)
+	outStr = str.Replace(outStr, "<", "&lt;", -1)
+	outStr = str.Replace(outStr, ">", "&gt;", -1)
+	return outStr
 }

@@ -20,7 +20,7 @@ func (p *WikiPagePrinter) Run() {
 	for page := range p.In {
 		fmt.Println("Title:", page.Title)
 		for _, fact := range page.Facts {
-			fmtFact(fact.Property, fact.Value)
+			fmt.Print(fact.asWikiFact())
 		}
 		for _, cat := range page.Categories {
 			fmt.Print(fmtCategory(cat))
