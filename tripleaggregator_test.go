@@ -56,14 +56,25 @@ func TestTripleAggregator(t *testing.T) {
 	}
 	for i, tr := range aggr1.Triples {
 		j := i + 1
-		if tr.Subj.String() != "http://example.org/s1" {
-			t.Errorf("Subject in triple %d of first aggregate is wrong", j)
+
+		// subject, predicate, object
+		s := tr.Subj.String()
+		p := tr.Pred.String()
+		o := tr.Obj.String()
+
+		// expected ditto
+		es := "http://example.org/s1"
+		ep := fmt.Sprintf("http://example.org/p%d", j)
+		eo := fmt.Sprintf("o%d", j)
+
+		if s != es {
+			t.Errorf("Subject in triple %d of first aggregate is wrong (Expected %s, got %s)", j, es, s)
 		}
-		if tr.Pred.String() != fmt.Sprintf("http://example.org/p%d", j) {
-			t.Errorf("Subject in triple %d of first aggregate is wrong", j)
+		if p != ep {
+			t.Errorf("Subject in triple %d of first aggregate is wrong (Expected %s, got %s)", j, ep, p)
 		}
-		if tr.Obj.String() != fmt.Sprintf("o%d", j) {
-			t.Errorf("Subject in triple %d of first aggregate is wrong", j)
+		if o != eo {
+			t.Errorf("Subject in triple %d of first aggregate is wrong (Expected %s, got %s)", j, eo, o)
 		}
 	}
 
@@ -73,14 +84,25 @@ func TestTripleAggregator(t *testing.T) {
 	}
 	for i, tr := range aggr2.Triples {
 		j := i + 4
+
+		// subject, predicate, object
+		s := tr.Subj.String()
+		p := tr.Pred.String()
+		o := tr.Obj.String()
+
+		// expected ditto
+		es := "http://example.org/s1"
+		ep := fmt.Sprintf("http://example.org/p%d", j)
+		eo := fmt.Sprintf("o%d", j)
+
 		if tr.Subj.String() != "http://example.org/s2" {
-			t.Errorf("Subject in triple %d of second aggregate is wrong", j)
+			t.Errorf("Subject in triple %d of second aggregate is wrong (Expected %s, got %s)", j, es, s)
 		}
 		if tr.Pred.String() != fmt.Sprintf("http://example.org/p%d", j) {
-			t.Errorf("Subject in triple %d of second aggregate is wrong", j)
+			t.Errorf("Subject in triple %d of second aggregate is wrong (Expected %s, got %s)", j, ep, p)
 		}
 		if tr.Obj.String() != fmt.Sprintf("o%d", j) {
-			t.Errorf("Subject in triple %d of second aggregate is wrong", j)
+			t.Errorf("Subject in triple %d of second aggregate is wrong (Expected %s, got %s)", j, eo, o)
 		}
 	}
 
