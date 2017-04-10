@@ -601,7 +601,7 @@ func (p *TripleAggregateToWikiPageConverter) convertUriToWikiTitle(uri string, u
 		factTitle = r.ReplaceAllString(factTitle, "")
 	}
 
-	// Limit to max 255 chars (due to MediaWiki limitaiton)
+	// Limit to max 255 chars (due to MediaWiki limitation)
 	titleIsShortened := false
 	for len(factTitle) >= 250 {
 		factTitle = removeLastWord(factTitle)
