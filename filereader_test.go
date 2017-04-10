@@ -6,13 +6,9 @@ import (
 	"testing"
 )
 
-func setUp() {
-	flowbase.InitLogWarning()
-}
-
 // TestNewOSFileReader tests NewOSFileReader
 func TestNewOSFileReader(t *testing.T) {
-	setUp()
+	flowbase.InitLogWarning()
 
 	fr := NewOsFileReader()
 	if fr.InFileName == nil {
@@ -42,7 +38,7 @@ func TestNewOSFileReader(t *testing.T) {
 
 // Tests the main behavior of the FileReader process
 func TestFileReader(t *testing.T) {
-	setUp()
+	flowbase.InitLogWarning()
 
 	testFileName := "testfile.txt"
 	line1 := "line one"

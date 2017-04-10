@@ -27,8 +27,8 @@ func NewOsFileReader() *FileReader {
 	return NewFileReader(afero.NewOsFs())
 }
 
-// NewFileReader returns an initialized FileReader, initialized with an afero
-// file system provided as a parameter
+// NewFileReader returns an initialized FileReader, initialized with the afero
+// file system provided as an argument
 func NewFileReader(fileSystem afero.Fs) *FileReader {
 	return &FileReader{
 		InFileName: make(chan string, BUFSIZE),
@@ -37,11 +37,13 @@ func NewFileReader(fileSystem afero.Fs) *FileReader {
 	}
 }
 
-// Run runs the FileReader process.
+// Run runs the FileReader process. It does not spawn a separate go-routine, so
+// you have to prepend the go keyword when calling it, in order to have it run
+// in a separate go-routine.
 func (p *FileReader) Run() {
 	defer close(p.OutLine)
 
-	//flowbase.Debug.Println("Starting loop")
+	flowbase.Debug.Println("Starting loop")
 	for fileName := range p.InFileName {
 		flowbase.Debug.Printf("Starting processing file %s\n", fileName)
 		fh, err := p.fs.Open(fileName)

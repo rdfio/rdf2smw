@@ -61,7 +61,7 @@ func main() {
 	net := flowbase.NewNet()
 
 	// Read in-file
-	ttlFileRead := NewTurtleFileReader()
+	ttlFileRead := NewOsTurtleFileReader()
 	net.AddProcess(ttlFileRead)
 
 	// Aggregate per subject
