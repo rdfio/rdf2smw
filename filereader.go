@@ -3,9 +3,9 @@ package main
 import (
 	"bufio"
 	"log"
-	"os"
 
 	"github.com/flowbase/flowbase"
+	"github.com/spf13/afero"
 )
 
 // --------------------------------------------------------------------------------
@@ -18,13 +18,22 @@ import (
 type FileReader struct {
 	InFileName chan string
 	OutLine    chan string
+	fs         afero.Fs
 }
 
-// NewFileReader returns an initialized FileReader.
-func NewFileReader() *FileReader {
+// NewOsFileReader returns an initialized FileReader, initialized with an OS
+// (normal) file system
+func NewOsFileReader() *FileReader {
+	return NewFileReader(afero.NewOsFs())
+}
+
+// NewFileReader returns an initialized FileReader, initialized with an afero
+// file system provided as a parameter
+func NewFileReader(fileSystem afero.Fs) *FileReader {
 	return &FileReader{
 		InFileName: make(chan string, BUFSIZE),
 		OutLine:    make(chan string, BUFSIZE),
+		fs:         fileSystem,
 	}
 }
 
@@ -35,7 +44,7 @@ func (p *FileReader) Run() {
 	flowbase.Debug.Println("Starting loop")
 	for fileName := range p.InFileName {
 		flowbase.Debug.Printf("Starting processing file %s\n", fileName)
-		fh, err := os.Open(fileName)
+		fh, err := p.fs.Open(fileName)
 		if err != nil {
 			log.Fatal(err)
 		}

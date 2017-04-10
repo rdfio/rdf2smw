@@ -8,8 +8,9 @@ import (
 // FileReader
 // -------------------------------------------------------------------------------
 
-func TestNewFileReader(t *testing.T) {
-	fr := NewFileReader()
+// TestNewOSFileReader tests NewOSFileReader
+func TestNewOSFileReader(t *testing.T) {
+	fr := NewOsFileReader()
 	if fr.InFileName == nil {
 		t.Error("In-port InFileName not initialized in New FileReader")
 	}
