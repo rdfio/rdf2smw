@@ -54,6 +54,8 @@ const (
 
 // Code -----------------------------------------------------------------------
 
+// TripleAggregateToWikiPageConverter takes *TripleAggregate's and converts
+// them into a *WikiPage which can be used to generate wiki text content.
 type TripleAggregateToWikiPageConverter struct {
 	InAggregate    chan *TripleAggregate
 	InIndex        chan *map[string]*TripleAggregate
