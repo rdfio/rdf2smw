@@ -7,6 +7,8 @@ machine:
 
 test:
   override:
+    - mkdir -p $GOPATH/src/github.com/rdfio
+    - ln -s $HOME/rdf2smw $GOPATH/src/github.com/rdfio/rdf2smw
     - mkdir -p $CIRCLE_TEST_REPORTS/go-junit
     - go test -v -race ./... | go-junit-report > $CIRCLE_TEST_REPORTS/go-junit/report.xml
     - bash testcov.sh
