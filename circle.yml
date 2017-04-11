@@ -9,7 +9,7 @@ test:
   override:
     - mkdir -p $CIRCLE_TEST_REPORTS/go-junit
     - go test -v -race ./... | go-junit-report > $CIRCLE_TEST_REPORTS/go-junit/report.xml
-    - go test -v -race -coverprofile=cover.out ./...
+    - bash testcov.sh
     - gocov convert cover.out | gocov-xml > coverage.xml
   post:
     - bash <(curl -s https://codecov.io/bash)
