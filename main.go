@@ -23,7 +23,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/rdfio/rdf2smw/components"
 	"os"
+
 	str "strings"
 
 	"github.com/flowbase/flowbase"
@@ -61,49 +63,49 @@ func main() {
 	net := flowbase.NewNet()
 
 	// Read in-file
-	ttlFileRead := NewOsTurtleFileReader()
+	ttlFileRead := components.NewOsTurtleFileReader()
 	net.AddProcess(ttlFileRead)
 
 	// TripleAggregator
-	aggregator := NewTripleAggregator()
+	aggregator := components.NewTripleAggregator()
 	net.AddProcess(aggregator)
 
 	// Create an subject-indexed "index" of all triples
-	indexCreator := NewResourceIndexCreator()
+	indexCreator := components.NewResourceIndexCreator()
 	net.AddProcess(indexCreator)
 
 	// Fan-out the triple index to the converter and serializer
-	indexFanOut := NewResourceIndexFanOut()
+	indexFanOut := components.NewResourceIndexFanOut()
 	net.AddProcess(indexFanOut)
 
 	// Serialize the index back to individual subject-tripleaggregates
-	indexToAggr := NewResourceIndexToTripleAggregates()
+	indexToAggr := components.NewResourceIndexToTripleAggregates()
 	net.AddProcess(indexToAggr)
 
 	// Convert TripleAggregate to WikiPage
-	triplesToWikiConverter := NewTripleAggregateToWikiPageConverter()
+	triplesToWikiConverter := components.NewTripleAggregateToWikiPageConverter()
 	net.AddProcess(triplesToWikiConverter)
 
-	//categoryFilterer := NewCategoryFilterer([]string{"DataEntry"})
+	//categoryFilterer := components.NewCategoryFilterer([]string{"DataEntry"})
 	//net.AddProcess(categoryFilterer)
 
 	// Pretty-print wiki page data
-	//wikiPagePrinter := NewWikiPagePrinter()
+	//wikiPagePrinter := components.NewWikiPagePrinter()
 	//net.AddProcess(wikiPagePrinter)
 
 	useTemplates := true
-	xmlCreator := NewMWXMLCreator(useTemplates)
+	xmlCreator := components.NewMWXMLCreator(useTemplates)
 	net.AddProcess(xmlCreator)
 
-	//printer := NewStringPrinter()
+	//printer := components.NewStringPrinter()
 	//net.AddProcess(printer)
-	templateWriter := NewStringFileWriter(str.Replace(*outFileName, ".xml", "_templates.xml", 1))
+	templateWriter := components.NewStringFileWriter(str.Replace(*outFileName, ".xml", "_templates.xml", 1))
 	net.AddProcess(templateWriter)
 
-	propertyWriter := NewStringFileWriter(str.Replace(*outFileName, ".xml", "_properties.xml", 1))
+	propertyWriter := components.NewStringFileWriter(str.Replace(*outFileName, ".xml", "_properties.xml", 1))
 	net.AddProcess(propertyWriter)
 
-	pageWriter := NewStringFileWriter(*outFileName)
+	pageWriter := components.NewStringFileWriter(*outFileName)
 	net.AddProcess(pageWriter)
 
 	snk := flowbase.NewSink()

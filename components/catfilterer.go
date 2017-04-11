@@ -1,4 +1,4 @@
-package main
+package components
 
 type CategoryFilterer struct {
 	In         chan *WikiPage

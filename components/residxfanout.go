@@ -1,4 +1,4 @@
-package main
+package components
 
 type ResourceIndexFanOut struct {
 	In  chan *map[string]*TripleAggregate

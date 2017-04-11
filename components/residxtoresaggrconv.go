@@ -1,4 +1,4 @@
-package main
+package components
 
 type ResourceIndexToTripleAggregates struct {
 	In  chan *map[string]*TripleAggregate

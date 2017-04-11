@@ -1,4 +1,4 @@
-package main
+package components
 
 type ResourceIndexCreator struct {
 	In  chan *TripleAggregate

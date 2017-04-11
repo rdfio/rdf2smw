@@ -1,4 +1,4 @@
-package main
+package components
 
 type FanOutTripleAggregate struct {
 	In  chan *TripleAggregate
