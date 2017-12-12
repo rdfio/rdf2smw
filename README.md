@@ -64,12 +64,17 @@ For linux 64 bit:
 Usage
 -----
 
+For performance reasons, rdf2smw assumes that the triples are sorted by subjects and then by predicates. This can be achieved as following: 
+```bash
+sort triples.nt -k2,2 -k1,1 -o sorted.triples.nt
+```
+
 Call the rdf2smw binary, specifying a file with triples in n-triples or turtle
 format, with the `--in` flag, and an output file in XML format with the
 `--out` flag, like so:
 
 ```bash
-./rdf2smw --in triples.nt --out semantic_mediawiki_pages.xml
+./rdf2smw --in sorted.triples.nt --out semantic_mediawiki_pages.xml
 ```
 
 In addition to the specified output file, there will be separate files for
