@@ -95,6 +95,17 @@ Note that the order above is highly recommended (templates, then properties,
 then the rest), so as to avoid unnecessary re-computing of semantic data after
 the import is done.
 
+Architecture
+------------
+
+Find below a schematic illustration of the flow-based programming process graph
+of the rdf2smw program:
+
+![Flow-based programming diagram of rdf2smw](architecture.png)
+
+_Illustration created with
+[drawfbp](https://github.com/jpaulm/drawfbp)_
+
 Known limitations
 -----------------
 
