@@ -54,7 +54,7 @@ though, you will need a web server, PHP, MediaWiki and Semantic MediaWiki.
 
 An automated virtualbox generation script (so valled "vagrant box"), with all
 of this, plus the RDFIO extension, can be found
-[here](https://github.com/samuell/rdfio-vagrantbox), and is highly recommended,
+[here](https://github.com/rdfio/rdfio-vagrantbox), and is highly recommended,
 if you don't have a MediaWiki / SemanticMediawiki installation already!
 
 Installation
