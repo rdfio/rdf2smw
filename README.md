@@ -1,7 +1,7 @@
 rdf2smw
 =======
 
-[![CircleCI](https://img.shields.io/circleci/project/github/rdfio/rdf2smw.svg)](https://circleci.com/gh/rdfio/rdf2smw)
+[![GitHub Actions CI](https://img.shields.io/github/actions/workflow/status/rdfio/rdf2smw/ci.yml)](https://github.com/rdfio/rdf2smw/actions/workflows/ci.yml)
 [![Test Coverage](https://img.shields.io/codecov/c/github/rdfio/rdf2smw.svg)](https://codecov.io/gh/rdfio/rdf2smw)
 [![Go Report Card Status](https://goreportcard.com/badge/github.com/rdfio/rdf2smw)](https://goreportcard.com/report/github.com/rdfio/rdf2smw)
 [![Code Climate Maintainability](https://img.shields.io/codeclimate/maintainability/rdfio/rdf2smw)](https://codeclimate.com/github/rdfio/rdf2smw)
