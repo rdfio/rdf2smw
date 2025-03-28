@@ -4,8 +4,9 @@ rdf2smw
 [![CircleCI](https://img.shields.io/circleci/project/github/rdfio/rdf2smw.svg)](https://circleci.com/gh/rdfio/rdf2smw)
 [![Test Coverage](https://img.shields.io/codecov/c/github/rdfio/rdf2smw.svg)](https://codecov.io/gh/rdfio/rdf2smw)
 [![Go Report Card Status](https://goreportcard.com/badge/github.com/rdfio/rdf2smw)](https://goreportcard.com/report/github.com/rdfio/rdf2smw)
-[![Code Climate Rating](https://img.shields.io/codeclimate/github/rdfio/rdf2smw.svg)](https://codeclimate.com/github/rdfio/rdf2smw)
-[![Code Climate Issues](https://img.shields.io/codeclimate/issues/github/rdfio/rdf2smw.svg)](https://codeclimate.com/github/rdfio/rdf2smw)
+[![Code Climate Maintainability](https://img.shields.io/codeclimate/maintainability/rdfio/rdf2smw)](https://codeclimate.com/github/rdfio/rdf2smw)
+[![Code Climate Tech Debt](https://img.shields.io/codeclimate/tech-debt/rdfio/rdf2smw)](https://codeclimate.com/github/rdfio/rdf2smw)
+[![Code Climate Issues](https://img.shields.io/codeclimate/issues/rdfio/rdf2smw)](https://codeclimate.com/github/rdfio/rdf2smw)
 [![GoDoc](https://godoc.org/github.com/rdfio/rdf2smw?status.svg)](https://godoc.org/github.com/rdfio/rdf2smw)
 
 Updates
