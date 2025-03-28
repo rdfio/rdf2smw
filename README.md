@@ -11,12 +11,15 @@ rdf2smw
 Updates
 -------
 
+**Mar 28, 2025:** Added `go.mod`/`go.sum` files to make building work again
+with the latest Go (1.24.0).
+
+**Sep 30, 2016:** rdf2smw was covered in a talk at SMWCon in Frankfurt, Sep 2016. See: [Talk page](https://www.semantic-mediawiki.org/wiki/SMWCon_Fall_2016/Batch_import_of_large_RDF_datasets_using_RDFIO_or_the_new_rdf2smw_tool), [Slides](https://www.slideshare.net/SamuelLampa/batch-import-of-large-rdf-datasets-into-semantic-mediawiki), [Video](https://www.youtube.com/watch?v=k70er1u1ZYs).
+
 **Sep 4, 2017:** Our paper on RDFIO and rdf2smw was just published! If you use rdf2smw in scientific work, please cite:<br>
 Lampa S, Willighagen E, Kohonen P, King A, Vrandečić D, Grafström R, Spjuth O<br> 
 [RDFIO: extending Semantic MediaWiki for interoperable biomedical data management](https://jbiomedsem.biomedcentral.com/articles/10.1186/s13326-017-0136-y)<br>
 *Journal of Biomedical Semantics*. **8**:35 (2017). DOI: [10.1186/s13326-017-0136-y](https://dx.doi.org/10.1186/s13326-017-0136-y).
-
-**Sep 30, 2016:** rdf2smw was covered in a talk at SMWCon in Frankfurt, Sep 2016. See: [Talk page](https://www.semantic-mediawiki.org/wiki/SMWCon_Fall_2016/Batch_import_of_large_RDF_datasets_using_RDFIO_or_the_new_rdf2smw_tool), [Slides](https://www.slideshare.net/SamuelLampa/batch-import-of-large-rdf-datasets-into-semantic-mediawiki), [Video](https://www.youtube.com/watch?v=k70er1u1ZYs).
 
 Import / convert RDF data into a Semantic MediaWiki
 ---------------------------------------------------
